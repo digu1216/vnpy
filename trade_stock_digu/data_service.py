@@ -470,10 +470,10 @@ class DataServiceTushare(object):
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
-    def getStockPriceLst(self, code, date):
+    def getStockPriceLst(self, code, begin_date, end_date=self.db_date):
         cl_stock_code = self.db[code]
         stock_price_lst = cl_stock_code.find(
-            {'trade_date': {"$gte": date}}, {'_id': 0}).sort("trade_date")
+            {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
         return stock_price_lst
 
     def getStockBasicInfo(self, code):
@@ -504,6 +504,25 @@ class DataServiceTushare(object):
             {'cal_date': {"$gt": trade_date}, 'is_open': 1},
             {'_id': 0}).sort("cal_date")
         return list(trade_cal)[0]['cal_date']
+
+    def get_pre_trade_date(self, trade_date):
+        # 获取上一个交易日
+        cl_cal = self.db[CL_TRADE_CAL]
+        trade_cal = cl_cal.find(
+            {'cal_date': {"$lt": trade_date}, 'is_open': 1},
+            {'_id': 0}).sort("cal_date", DESCENDING)
+        return list(trade_cal)[0]['cal_date']
+
+    def get_pre_n_trade_date(self, trade_date, days):
+        # 获取上N个交易日
+        cl_cal = self.db[CL_TRADE_CAL]
+        trade_cal = cl_cal.find(
+            {'cal_date': {"$lt": trade_date}, 'is_open': 1},
+            {'_id': 0}).sort("cal_date", DESCENDING).limit(days)
+        ret_lst = list()
+        for item in trade_cal:
+            ret_lst.append(item['cal_date'])
+        return ret_lst
 
     def getStockTopList(self, date):
         cl_stock_top_list = self.db[CL_STK_TOP_LIST]

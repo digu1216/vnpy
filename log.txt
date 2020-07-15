@@ -1089,3 +1089,15 @@ Index: []
 2020-07-13 22:35:31,997 - INFO - data_service.py             - 326 :  构建股票日K线数据
 2020-07-13 23:05:50,747 - INFO - data_service.py             - 428 :  (688309.SH)调用tushare ts.pro_bar失败，空数据
 2020-07-13 23:06:05,730 - INFO - data_service.py             - 348 :  构建股票日K线数据完成，耗时0.5093700950013267小时
+2020-07-15 08:16:28,844 - INFO - data_service.py             - 310 :  构建交易日日历数据
+2020-07-15 08:16:30,505 - INFO - data_service.py             - 319 :  构建交易日日历数据完成
+2020-07-15 08:16:30,506 - INFO - data_service.py             - 378 :  构建股票基础信息
+2020-07-15 08:16:33,697 - INFO - data_service.py             - 388 :  构建股票基础信息完成
+2020-07-15 08:16:33,699 - INFO - data_service.py             - 351 :  构建指数K线数据
+2020-07-15 08:16:34,811 - INFO - data_service.py             - 359 :  构建指数K线数据完成
+2020-07-15 08:16:34,812 - INFO - data_service.py             - 363 :  构建龙虎榜数据
+2020-07-15 08:16:50,067 - INFO - data_service.py             - 375 :  构建龙虎榜数据完成
+2020-07-15 08:16:50,068 - INFO - data_service.py             - 326 :  构建股票日K线数据
+2020-07-15 08:46:39,194 - INFO - data_service.py             - 428 :  (688165.SH)调用tushare ts.pro_bar失败，空数据
+2020-07-15 08:46:41,641 - INFO - data_service.py             - 428 :  (688180.SH)调用tushare ts.pro_bar失败，空数据
+2020-07-15 08:47:22,172 - INFO - data_service.py             - 348 :  构建股票日K线数据完成，耗时0.5089174397786458小时
