@@ -1,17 +1,23 @@
 import numpy as np
+from datetime import datetime
+from datetime import timedelta
+from collections import Counter
 from strategy_base import StrategyBase
+from data_service import DataServiceTushare
+from convert_utils import string_to_datetime, time_to_str
 
 class StrategyVol(StrategyBase):
     """
     股票池定义：
     1、流通市值小于500亿
-    2、选股当天自由流通股换手率>1%
-    3、股价未暴涨，一年最高价/最低价 < 4
+    2、选股当天自由流通股换手率>1%  turnover_rate_f_min
+    3、股价未暴涨，一年最高价/最低价 < 4 pct_chg_max_year
     4、多头排列 ma5>ma20>ma60>ma120>ma250,close>ma5,close<ma5*1.2
+    5、上市时间超过n_years=2年
     按照量能在股票池中选股：
-    1、统计股票池最近N=5日的每日换手率的前500排名得到集合A1-A5
-    2、统计股票池最近N=5日的每日量比的前500排名得到集合B1-B5
-    3、取A1-A5，B1-B5的交集得到买入股票
+    1、统计股票池最近N=5日的每日换手率的前200排名得到集合A1-A5 n_days n_rank_turnover
+    2、统计股票池最近N=5日的每日量比的前200排名得到集合B1-B5  n_days n_rank_vol
+    3、取A1-A5，B1-B5出现次数前n_rank_times = 6的股票组成股票池
     策略调仓：
     1、每周调仓一次，卖出所有股票，平均买入新的买入股票
     """
@@ -20,18 +26,29 @@ class StrategyVol(StrategyBase):
     pct_chg_max_year = 4.0
     n_days = 5
     pct_close_to_ma5 = 1.2
+    n_rank_turnover = 200
+    n_rank_vol= 200
+    n_years = 2
+    n_rank_times = 6
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
         super().__init__()
 
-    def pick_stock():    
+    def pick_stock(self, date):    
         self.set_date(date)        
         ds_tushare = DataServiceTushare()
         lst_code_pool = list()
         lst_code_picked = list()
         for ts_code in ds_tushare.lst_stock_:
+            stock_basic = ds_tushare.getStockBasicInfo(ts_code)
+            dt_date = string_to_datetime(self.stock_picked_date)
+            d = timedelta(days=-365 * self.n_years)
+            if stock_basic['list_date'] > time_to_str(dt_date+d, '%Y%m%d'):
+                # 排除上市时间小于2年的股票
+                continue
             dic_stock_price = ds_tushare.getStockPriceInfo(ts_code, self.stock_picked_date)       
             if dic_stock_price is None:
+                # 排除选股日停牌的股票
                 continue      
             if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < turnover_rate_f_min \
                 or dic_stock_price['high_250'] / dic_stock_price['low_250'] > self.pct_chg_max_year \
@@ -82,9 +99,38 @@ class StrategyVol(StrategyBase):
                     self.logger.info('lst_stock_price data error!!!')
                     self.logger.info(lst_stock_price)
                     break
+        arr_a1_idx = np.array(arr_a1).argsort()[-(self.n_rank_turnover+1), -1]
+        arr_a2_idx = np.array(arr_a2).argsort()[-(self.n_rank_turnover+1), -1]
+        arr_a3_idx = np.array(arr_a3).argsort()[-(self.n_rank_turnover+1), -1]
+        arr_a4_idx = np.array(arr_a4).argsort()[-(self.n_rank_turnover+1), -1]
+        arr_a5_idx = np.array(arr_a5).argsort()[-(self.n_rank_turnover+1), -1]
+        arr_b1_idx = np.array(arr_b1).argsort()[-(self.n_rank_vol+1), -1]
+        arr_b2_idx = np.array(arr_b2).argsort()[-(self.n_rank_vol+1), -1]
+        arr_b3_idx = np.array(arr_b3).argsort()[-(self.n_rank_vol+1), -1]
+        arr_b4_idx = np.array(arr_b4).argsort()[-(self.n_rank_vol+1), -1]
+        arr_b5_idx = np.array(arr_b5).argsort()[-(self.n_rank_vol+1), -1]
+        arr_combine = np.hstack((arr_a1_idx, arr_a2_idx, arr_a3_idx, arr_a4_idx, arr_a5_idx, \
+            arr_b1_idx, arr_b2_idx, arr_b3_idx, arr_b4_idx ,arr_b5_idx))
+        res_count = Counter(arr_combine)
+        res_stock_idx = res_count.most_common(self.n_rank_times)
+        if len(res_stock_idx) != 0:
+            for item in res_stock_idx:
+                lst_code_picked.append(arr_code[item[0]])
+        return lst_code_picked
+
+
+if __name__ == "__main__":
+    ds_tushare = DataServiceTushare()
+    strategy = StrategyVol()
+    lst_trade_date = ds_tushare.getTradeCal('20200101', '20200701')
+    cnt_loop = 0
+    for item_date in lst_trade_date:
+        cnt_loop += 1
+        if cnt_loop % 5 == 0:
+            # 换股日
+            strategy.pick_stock(item_date)
 
 """
 to do:
-统计量比，换手率排名选股
 计算股票池的每日涨跌幅（叠加大盘指数绘图）
 """                    

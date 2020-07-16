@@ -470,7 +470,7 @@ class DataServiceTushare(object):
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
-    def getStockPriceLst(self, code, begin_date, end_date=self.db_date):
+    def getStockPriceLst(self, code, begin_date, end_date):
         cl_stock_code = self.db[code]
         stock_price_lst = cl_stock_code.find(
             {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
