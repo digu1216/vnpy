@@ -6,9 +6,9 @@ from datetime import datetime
 
 engine = BacktestingEngine()
 engine.set_parameters(
-    vt_symbol="000001_SH.SZSE",
+    vt_symbol="000001_SH.SSE",
     interval="d",
-    start=datetime(2019, 1, 1),
+    start=datetime(2015, 10, 10),
     end=datetime(2019, 10, 30),
     rate=0.3/10000,
     slippage=0.2,
