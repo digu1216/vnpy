@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 from logger import Logger
 from convert_utils import string_to_datetime, time_to_str
+from data_service import DataServiceTushare
 
 class StrategyBase(ABC):
     """
@@ -18,7 +19,9 @@ class StrategyBase(ABC):
     
     def set_date(self, date):
         # 设置选股日期
-        self.stock_picked_date = date
+        ds_tushare = DataServiceTushare()
+        trade_date = ds_tushare.get_trade_date(date)
+        self.stock_picked_date = trade_date
 
     @abstractmethod
     def pick_stock(self, date):

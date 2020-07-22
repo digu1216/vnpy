@@ -3,54 +3,59 @@ from logger import Logger
 import tushare as ts
 from time import time, sleep
 from itertools import groupby
+from strategy_vol import StrategyVol
         
 if __name__ == "__main__":
     logger = Logger().getlog()
     ds_tushare = DataServiceTushare()
-    lst_trade_date = ds_tushare.getTradeCal(begin_date='20190101', end_date='20200331')
-    lst_date = list()
-    lst_net_rate = list()
-    for item_date in lst_trade_date:
-        lst_top_list = ds_tushare.getStockTopList(item_date)
-        for item_top_list in lst_top_list:
-            lst_net_rate.append(item_top_list['net_rate'])
-            # 龙虎榜统计数据结构 ts_code, trade_date, net_rate, n+1日开盘价，最低价，n+2~3日最低价，最高价,n+3日收盘价
-            item_dic = dict()
-            item_dic['ts_code'] = item_top_list['ts_code']
-            item_dic['trade_date'] = item_top_list['trade_date']
-            item_dic['net_rate'] = item_top_list['net_rate']
-            lst_price = ds_tushare.getStockPriceLst(item_top_list['ts_code'].replace('.', '_'), item_top_list['trade_date'])
-            lst_price = list(lst_price)
-            if len(lst_price) == 0:
-                continue
-            n1_open = lst_price[1]['open']
-            n1_low = lst_price[1]['low']
-            n23_high = 0.0
-            n23_low = 0.0
-            n3_close = lst_price[3]['close']
-            for i in range(2, 4):
-                n23_high = lst_price[i]['high'] if lst_price[i]['high'] > n23_high else n23_high
-                n23_low = lst_price[i]['low'] if lst_price[i]['low'] < n23_low else n23_low
-            item_dic['n1_open'] = n1_open
-            item_dic['n1_low'] = n1_low
-            item_dic['n23_high'] = n23_high
-            item_dic['n23_low'] = n23_low
-            item_dic['n3_close'] = n3_close
-            lst_date.append(item_dic)
-    lst_net_rate.sort()
-    a = [(k, len(list(g))) for k,g in groupby(lst_net_rate, key=lambda x:x//5)]
-    print(a)
-    rate_high = 0.0
-    rate_low = 0.0
-    cnt = 0
-    for item in lst_date:
-        if item['net_rate'] > 80:
-            cnt += 1
-            rate_high += item_dic['n23_high'] - item_dic['n1_open']
-            rate_low += item_dic['n23_low'] - item_dic['n1_open']
-    print('higt=%s' %(rate_high/cnt))
-    print('low=%s' %(rate_low/cnt))
-    print(cnt)
+    strategy_vol = StrategyVol()
+    lst_picked = strategy_vol.pick_stock('20200722')
+    print(lst_picked)
+
+    # lst_trade_date = ds_tushare.getTradeCal(begin_date='20190101', end_date='20200331')
+    # lst_date = list()
+    # lst_net_rate = list()
+    # for item_date in lst_trade_date:
+    #     lst_top_list = ds_tushare.getStockTopList(item_date)
+    #     for item_top_list in lst_top_list:
+    #         lst_net_rate.append(item_top_list['net_rate'])
+    #         龙虎榜统计数据结构 ts_code, trade_date, net_rate, n+1日开盘价，最低价，n+2~3日最低价，最高价,n+3日收盘价
+    #         item_dic = dict()
+    #         item_dic['ts_code'] = item_top_list['ts_code']
+    #         item_dic['trade_date'] = item_top_list['trade_date']
+    #         item_dic['net_rate'] = item_top_list['net_rate']
+    #         lst_price = ds_tushare.getStockPriceLst(item_top_list['ts_code'].replace('.', '_'), item_top_list['trade_date'])
+    #         lst_price = list(lst_price)
+    #         if len(lst_price) == 0:
+    #             continue
+    #         n1_open = lst_price[1]['open']
+    #         n1_low = lst_price[1]['low']
+    #         n23_high = 0.0
+    #         n23_low = 0.0
+    #         n3_close = lst_price[3]['close']
+    #         for i in range(2, 4):
+    #             n23_high = lst_price[i]['high'] if lst_price[i]['high'] > n23_high else n23_high
+    #             n23_low = lst_price[i]['low'] if lst_price[i]['low'] < n23_low else n23_low
+    #         item_dic['n1_open'] = n1_open
+    #         item_dic['n1_low'] = n1_low
+    #         item_dic['n23_high'] = n23_high
+    #         item_dic['n23_low'] = n23_low
+    #         item_dic['n3_close'] = n3_close
+    #         lst_date.append(item_dic)
+    # lst_net_rate.sort()
+    # a = [(k, len(list(g))) for k,g in groupby(lst_net_rate, key=lambda x:x//5)]
+    # print(a)
+    # rate_high = 0.0
+    # rate_low = 0.0
+    # cnt = 0
+    # for item in lst_date:
+    #     if item['net_rate'] > 80:
+    #         cnt += 1
+    #         rate_high += item_dic['n23_high'] - item_dic['n1_open']
+    #         rate_low += item_dic['n23_low'] - item_dic['n1_open']
+    # print('higt=%s' %(rate_high/cnt))
+    # print('low=%s' %(rate_low/cnt))
+    # print(cnt)
 
 
 

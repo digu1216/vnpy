@@ -1127,3 +1127,9 @@ Index: []
 2020-07-19 22:49:23,855 - INFO - data_service.py             - 428 :  (688256.SH)调用tushare ts.pro_bar失败，空数据
 2020-07-19 22:49:38,913 - INFO - data_service.py             - 428 :  (688488.SH)调用tushare ts.pro_bar失败，空数据
 2020-07-19 22:49:48,106 - INFO - data_service.py             - 348 :  构建股票日K线数据完成，耗时0.535798365937339小时
+2020-07-22 12:09:27,211 - INFO - strategy_vol.py             - 64 :  []
+2020-07-22 12:09:27,211 - INFO - strategy_vol.py             - 64 :  []
+2020-07-22 12:09:27,211 - INFO - strategy_vol.py             - 64 :  []
+2020-07-22 12:26:43,877 - INFO - strategy_vol.py             - 64 :  []
+2020-07-22 12:26:43,877 - INFO - strategy_vol.py             - 64 :  []
+2020-07-22 12:26:43,877 - INFO - strategy_vol.py             - 64 :  []

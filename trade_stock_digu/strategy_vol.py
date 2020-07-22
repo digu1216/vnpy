@@ -30,7 +30,11 @@ class StrategyVol(StrategyBase):
     n_rank_vol= 200
     n_years = 2
     n_rank_times = 6
-    def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
+    # def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
+    #     """"""
+    #     super().__init__()
+
+    def __init__(self):
         """"""
         super().__init__()
 
@@ -39,7 +43,7 @@ class StrategyVol(StrategyBase):
         ds_tushare = DataServiceTushare()
         lst_code_pool = list()
         lst_code_picked = list()
-        for ts_code in ds_tushare.lst_stock_:
+        for ts_code in ds_tushare.get_stock_list():
             stock_basic = ds_tushare.getStockBasicInfo(ts_code)
             dt_date = string_to_datetime(self.stock_picked_date)
             d = timedelta(days=-365 * self.n_years)
@@ -50,13 +54,14 @@ class StrategyVol(StrategyBase):
             if dic_stock_price is None:
                 # 排除选股日停牌的股票
                 continue      
-            if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < turnover_rate_f_min \
+            if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < self.turnover_rate_f_min \
                 or dic_stock_price['high_250'] / dic_stock_price['low_250'] > self.pct_chg_max_year \
                     or dic_stock_price['ma_250'] > dic_stock_price['ma_120'] or dic_stock_price['ma_120'] > dic_stock_price['ma_60'] \
                         or dic_stock_price['ma_60'] > dic_stock_price['ma_20'] or dic_stock_price['ma_20'] > dic_stock_price['ma_5'] \
                             or dic_stock_price['close'] > dic_stock_price['ma_5'] * self.pct_close_to_ma5:
                 continue
             lst_code_pool.append(dic_stock_price['ts_code'])
+        self.logger.info(lst_code_pool)
         lst_n_days = ds_tushare.get_pre_n_trade_date(self.stock_picked_date, self.n_days)   # 日期从大到小排列
         arr_code = list()
         arr_a1 = list() # 最近一天的数据
@@ -99,16 +104,16 @@ class StrategyVol(StrategyBase):
                     self.logger.info('lst_stock_price data error!!!')
                     self.logger.info(lst_stock_price)
                     break
-        arr_a1_idx = np.array(arr_a1).argsort()[-(self.n_rank_turnover+1), -1]
-        arr_a2_idx = np.array(arr_a2).argsort()[-(self.n_rank_turnover+1), -1]
-        arr_a3_idx = np.array(arr_a3).argsort()[-(self.n_rank_turnover+1), -1]
-        arr_a4_idx = np.array(arr_a4).argsort()[-(self.n_rank_turnover+1), -1]
-        arr_a5_idx = np.array(arr_a5).argsort()[-(self.n_rank_turnover+1), -1]
-        arr_b1_idx = np.array(arr_b1).argsort()[-(self.n_rank_vol+1), -1]
-        arr_b2_idx = np.array(arr_b2).argsort()[-(self.n_rank_vol+1), -1]
-        arr_b3_idx = np.array(arr_b3).argsort()[-(self.n_rank_vol+1), -1]
-        arr_b4_idx = np.array(arr_b4).argsort()[-(self.n_rank_vol+1), -1]
-        arr_b5_idx = np.array(arr_b5).argsort()[-(self.n_rank_vol+1), -1]
+        arr_a1_idx = np.array(arr_a1).argsort()[-(self.n_rank_turnover+1): -1]
+        arr_a2_idx = np.array(arr_a2).argsort()[-(self.n_rank_turnover+1): -1]
+        arr_a3_idx = np.array(arr_a3).argsort()[-(self.n_rank_turnover+1): -1]
+        arr_a4_idx = np.array(arr_a4).argsort()[-(self.n_rank_turnover+1): -1]
+        arr_a5_idx = np.array(arr_a5).argsort()[-(self.n_rank_turnover+1): -1]
+        arr_b1_idx = np.array(arr_b1).argsort()[-(self.n_rank_vol+1): -1]
+        arr_b2_idx = np.array(arr_b2).argsort()[-(self.n_rank_vol+1): -1]
+        arr_b3_idx = np.array(arr_b3).argsort()[-(self.n_rank_vol+1): -1]
+        arr_b4_idx = np.array(arr_b4).argsort()[-(self.n_rank_vol+1): -1]
+        arr_b5_idx = np.array(arr_b5).argsort()[-(self.n_rank_vol+1): -1]
         arr_combine = np.hstack((arr_a1_idx, arr_a2_idx, arr_a3_idx, arr_a4_idx, arr_a5_idx, \
             arr_b1_idx, arr_b2_idx, arr_b3_idx, arr_b4_idx ,arr_b5_idx))
         res_count = Counter(arr_combine)

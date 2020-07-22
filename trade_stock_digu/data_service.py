@@ -72,10 +72,17 @@ class DataServiceTushare(object):
         ts.set_token('4c1d16a895e4c954adc8d2a436f2b21dd4ccc514f0c5a192edaa953b')
         self.pro = ts.pro_api()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
-        self.lst_stock_ = list()
-        self.list_stock_vnpy_ = list()
 
-    def _get_trade_date(self, trade_date):
+    def get_stock_list(self):
+        lst_code = list()
+        cl_stock_basic = self.db[CL_STOCK_BASIC]
+        stock_basic_lst = cl_stock_basic.find(
+            {}, {'_id': 0}).sort("ts_code", ASCENDING)
+        for d in stock_basic_lst:  
+            lst_code.append(d['ts_code'])
+        return lst_code
+
+    def get_trade_date(self, trade_date):
         # 获取当前日期最邻近的一个交易日
         # 1、如果当前日期就是交易日，则返回当前日期
         # 2、如果当前日期不是交易日，则返回当前日期之前的一个交易日
@@ -90,22 +97,6 @@ class DataServiceTushare(object):
             return True
         else:
             return False
-        # if update is True:
-        #     if self.list_stock_vnpy_ == []:
-        #         cl_stock_code_vnpy = self.db_vnpy[CL_STOCK_K_DATA_VNPY]
-        #         res_symbol = cl_stock_code_vnpy.find({}).distinct('symbol')
-        #         for item in res_symbol:
-        #             self.list_stock_vnpy_.append(item.replace('_', '.'))
-        #     return ts_code in self.list_stock_vnpy_
-        # else:
-        #     if self.list_stock_vnpy_ == []:
-        #         cl_daily_basic = self.db[CL_DAILY_BASIC]
-        #         # 流通市值大于100亿的公司入vnpy数据库            
-        #         daily_basic = cl_daily_basic.find({'circ_mv': {"$gte": 1000000}},
-        #             {'ts_code': 1, 'total_mv': 1, '_id': 0}).sort("ts_code")
-        #         for item in daily_basic:
-        #             self.list_stock_vnpy_.append(item['ts_code'])
-        #     return ts_code in self.list_stock_vnpy_
 
     def _build_db_vnpy(self, d):
         # 更新vnpy数据库数据
@@ -465,13 +456,15 @@ class DataServiceTushare(object):
         return df_index_k_data
 
     def getStockPriceInfo(self, code, date):
-        cl_stock_code = self.db[code]
+        code_db = code.replace('.', '_')
+        cl_stock_code = self.db[code_db]
         stock_price_info = cl_stock_code.find_one(
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
     def getStockPriceLst(self, code, begin_date, end_date):
-        cl_stock_code = self.db[code]
+        code_db = code.replace('.', '_')
+        cl_stock_code = self.db[code_db]
         stock_price_lst = cl_stock_code.find(
             {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
         return stock_price_lst
