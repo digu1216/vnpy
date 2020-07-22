@@ -71,7 +71,6 @@ class DataServiceTushare(object):
         self.date_now = time_to_str(datetime.now(), '%Y%m%d')
         ts.set_token('4c1d16a895e4c954adc8d2a436f2b21dd4ccc514f0c5a192edaa953b')
         self.pro = ts.pro_api()
-        cl_stock_basic = self.db[CL_STOCK_BASIC]
 
     def get_stock_list(self):
         lst_code = list()
@@ -123,7 +122,7 @@ class DataServiceTushare(object):
             cl_stock_code_vnpy.ensure_index([('symbol', ASCENDING), ('exchange', ASCENDING), ('interval', ASCENDING), ('datetime', ASCENDING)], unique=True)
             cl_stock_code_vnpy.replace_one(flt_vnpy, d_db_vnpy, upsert=True)
 
-    def _initKData(self, code, k_data):
+    def _init_k_data(self, code, k_data):
         # 注意：所有的数据库数据和列表数据都按照日期的正序排序(从小到大)
         """
         初始化股票数据库数据
@@ -206,7 +205,7 @@ class DataServiceTushare(object):
                 flt = {'trade_date': d['trade_date']}
                 cl_stock_code.replace_one(flt, d, upsert=True)
 
-    def _updateKData(self, code, k_data):
+    def _update_k_data(self, code, k_data):
         # 注意：所有的数据库数据和列表数据都按照日期的正序排序(从小到大)
         """
         更新股票，股指每日数据（行情，K线，市值等0）
@@ -228,10 +227,6 @@ class DataServiceTushare(object):
                     self._build_db_vnpy(d)
                 flt = {'trade_date': d['trade_date']}
                 cl_stock_code.replace_one(flt, d, upsert=True)
-            lst_close = list()
-            lst_high = list()
-            lst_low = list()
-            lst_trade_date = list()
             rec = cl_stock_code.find({}).sort("trade_date", DESCENDING).limit(522)
             rec = list(rec)
             rec.reverse()
@@ -297,7 +292,7 @@ class DataServiceTushare(object):
                     flt = {'trade_date': d['trade_date']}
                     cl_stock_code.replace_one(flt, d, upsert=True)
 
-    def _buildTradeCal(self):
+    def _build_trade_cal(self):
         self.log.info('构建交易日日历数据')
         df_trade_cal = self.pro.trade_cal(
             exchange='', start_date=DATA_BEGIN_DATE, end_date=self.date_now)
@@ -309,10 +304,10 @@ class DataServiceTushare(object):
             cl_trade_cal.replace_one(flt, d, upsert=True)
         self.log.info('构建交易日日历数据完成')
 
-    def buildStockData(self, update=True):
-        self._buildTradeCal()
-        self._buildBasic()        
-        self._buildIndex(update)
+    def build_stock_data(self, update=True):
+        self._build_trade_cal()
+        self._build_basic()        
+        self._build_index(update)
         self._build_top_list()        
         self.log.info('构建股票日K线数据')
         start = time()
@@ -320,15 +315,15 @@ class DataServiceTushare(object):
         stock_basic_lst = cl_stock_basic.find(
             {}, {'_id': 0}).sort("ts_code", ASCENDING)
         for d in stock_basic_lst:    
-            df_stock_k_data = self._getDailyKDataFromTs(d['ts_code'], update)       
-            df_stock_daily_basic = self._getDailyBasicFromTs(d['ts_code'], update)   
+            df_stock_k_data = self._get_daily_k_data_from_ts(d['ts_code'], update)       
+            df_stock_daily_basic = self._get_daily_basic_from_ts(d['ts_code'], update)   
             if df_stock_k_data.empty is False and df_stock_daily_basic.empty is False:
                 df_stock_info = pd.merge(df_stock_k_data, df_stock_daily_basic)
             if d['list_date'] < self.date_now:
                 if update is True:
-                    self._updateKData(d['ts_code'], df_stock_info)
+                    self._update_k_data(d['ts_code'], df_stock_info)
                 else:
-                    self._initKData(d['ts_code'], df_stock_info)
+                    self._init_k_data(d['ts_code'], df_stock_info)
         # 数据更新时间
         cl_stock_db_date = self.db[CL_STOCK_DATE]
         db_date = {'db_date': self.date_now}
@@ -338,22 +333,22 @@ class DataServiceTushare(object):
         cost = (end - start)/3600
         self.log.info('构建股票日K线数据完成，耗时%s小时' % cost)
 
-    def _buildIndex(self, update=True):
+    def _build_index(self, update=True):
         self.log.info('构建指数K线数据')        
         for code in self.index_lst:
-            df_index = self._getIndexDailyKDataFromTs(code, update)        
+            df_index = self._get_index_daily_k_data_from_ts(code, update)        
             if df_index.empty is False:
                 if update is True:            
-                    self._updateKData(code, df_index)
+                    self._update_k_data(code, df_index)
                 else:
-                    self._initKData(code, df_index)
+                    self._init_k_data(code, df_index)
         self.log.info('构建指数K线数据完成')
 
     def _build_top_list(self):
         # 构建龙虎榜数据                
         self.log.info('构建龙虎榜数据')     
         begin_date = '20050101' if self.db_date < '20050101' else self.db_date  # 龙虎榜数据只有2005年之后的数据
-        trade_lst = self.getTradeCal(begin_date)
+        trade_lst = self.get_trade_cal(begin_date)
         for item_date in trade_lst:
             df_top_list = self.pro.top_list(trade_date=item_date)
             sleep(1)
@@ -365,7 +360,7 @@ class DataServiceTushare(object):
                     cl_stk_top_list.replace_one(flt_top_list, d_top_list, upsert=True)  
         self.log.info('构建龙虎榜数据完成')
 
-    def _buildBasic(self):
+    def _build_basic(self):
         self.log.info('构建股票基础信息')
         data = self.pro.stock_basic(
             exchange='', list_status='L',
@@ -374,11 +369,11 @@ class DataServiceTushare(object):
         cl_stock_basic.ensure_index([('ts_code', ASCENDING)], unique=True)
         for ix, row in data.iterrows():
             d = row.to_dict()
-            flt = {'ts_code': d['ts_code']}
+            flt = {'ts_code': d['ts_code'].replace('.', '_')}
             cl_stock_basic.replace_one(flt, d, upsert=True)
         self.log.info('构建股票基础信息完成')
 
-    def _getDailyBasicFromTs(self, code, update=True):        
+    def _get_daily_basic_from_ts(self, code, update=True):        
         start_date = DATA_BEGIN_DATE
         if update is True:
             start_date = self.db_date
@@ -403,7 +398,7 @@ class DataServiceTushare(object):
             df_daily_basic.fillna(0.0, inplace=True)
         return df_daily_basic  
 
-    def _getDailyKDataFromTs(self, code, update=True):        
+    def _get_daily_k_data_from_ts(self, code, update=True):        
         start_date = DATA_BEGIN_DATE
         if update is True:
             start_date = self.db_date
@@ -429,7 +424,7 @@ class DataServiceTushare(object):
         df_k_data.fillna(0.0, inplace=True)
         return df_k_data
 
-    def _getIndexDailyKDataFromTs(self, code, update=True):                
+    def _get_index_daily_k_data_from_ts(self, code, update=True):                
         start_date = DATA_BEGIN_DATE
         if update is True:
             start_date = self.db_date
@@ -455,27 +450,28 @@ class DataServiceTushare(object):
         df_index_k_data.fillna(0.0, inplace=True)
         return df_index_k_data
 
-    def getStockPriceInfo(self, code, date):
+    def get_stock_price_info(self, code, date):
         code_db = code.replace('.', '_')
         cl_stock_code = self.db[code_db]
         stock_price_info = cl_stock_code.find_one(
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
-    def getStockPriceLst(self, code, begin_date, end_date):
+    def get_stock_price_lst(self, code, begin_date, end_date):
         code_db = code.replace('.', '_')
         cl_stock_code = self.db[code_db]
         stock_price_lst = cl_stock_code.find(
             {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
         return stock_price_lst
 
-    def getStockBasicInfo(self, code):
+    def get_stock_basic_info(self, code):
+        code_db = code.replace('.', '_')
         cl_stock_basic = self.db[CL_STOCK_BASIC]
         stock_basic_info = cl_stock_basic.find_one(
-            {'ts_code': code}, {'_id': 0})
+            {'ts_code': code_db}, {'_id': 0})
         return stock_basic_info
 
-    def getTradeCal(self, begin_date, end_date=None):
+    def get_trade_cal(self, begin_date, end_date=None):
         cl_cal = self.db[CL_TRADE_CAL]
         if end_date is None:
             trade_cal = cl_cal.find(
@@ -517,7 +513,7 @@ class DataServiceTushare(object):
             ret_lst.append(item['cal_date'])
         return ret_lst
 
-    def getStockTopList(self, date):
+    def get_stock_top_lst(self, date):
         cl_stock_top_list = self.db[CL_STK_TOP_LIST]
         top_list = cl_stock_top_list.find(
             {'trade_date': date}, {'_id': 0})
@@ -528,4 +524,4 @@ class DataServiceTushare(object):
 
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
-    ds_tushare.buildStockData(update=False)
+    ds_tushare.build_stock_data(update=False)
