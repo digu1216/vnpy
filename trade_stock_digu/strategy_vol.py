@@ -14,6 +14,7 @@ class StrategyVol(StrategyBase):
     3、股价未暴涨，一年最高价/最低价 < 4 pct_chg_max_year
     4、多头排列 ma5>ma20>ma60>ma120>ma250,close>ma5,close<ma5*1.2
     5、上市时间超过n_years=2年
+    6、当日非st
     按照量能在股票池中选股：
     1、统计股票池最近N=5日的每日换手率的前200排名得到集合A1-A5 n_days n_rank_turnover
     2、统计股票池最近N=5日的每日量比的前200排名得到集合B1-B5  n_days n_rank_vol
@@ -44,16 +45,19 @@ class StrategyVol(StrategyBase):
         lst_code_pool = list()
         lst_code_picked = list()
         for ts_code in ds_tushare.get_stock_list():
-            stock_basic = ds_tushare.getStockBasicInfo(ts_code)
+            stock_basic = ds_tushare.get_stock_basic_info(ts_code)
+            if stock_basic is None:
+                self.logger.info('None stock basic info %s' %ts_code)
+                continue
             dt_date = string_to_datetime(self.stock_picked_date)
             d = timedelta(days=-365 * self.n_years)
-            if stock_basic['list_date'] > time_to_str(dt_date+d, '%Y%m%d'):
-                # 排除上市时间小于2年的股票
+            if stock_basic['list_date'] > time_to_str(dt_date+d, '%Y%m%d') or 'ST' in stock_basic['name']:
+                # 排除上市时间小于2年和st股票
                 continue
-            dic_stock_price = ds_tushare.getStockPriceInfo(ts_code, self.stock_picked_date)       
+            dic_stock_price = ds_tushare.get_stock_price_info(ts_code, self.stock_picked_date)       
             if dic_stock_price is None:
                 # 排除选股日停牌的股票
-                continue      
+                continue   
             if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < self.turnover_rate_f_min \
                 or dic_stock_price['high_250'] / dic_stock_price['low_250'] > self.pct_chg_max_year \
                     or dic_stock_price['ma_250'] > dic_stock_price['ma_120'] or dic_stock_price['ma_120'] > dic_stock_price['ma_60'] \
@@ -61,7 +65,7 @@ class StrategyVol(StrategyBase):
                             or dic_stock_price['close'] > dic_stock_price['ma_5'] * self.pct_close_to_ma5:
                 continue
             lst_code_pool.append(dic_stock_price['ts_code'])
-        self.logger.info(lst_code_pool)
+        # self.logger.info(lst_code_pool)
         lst_n_days = ds_tushare.get_pre_n_trade_date(self.stock_picked_date, self.n_days)   # 日期从大到小排列
         arr_code = list()
         arr_a1 = list() # 最近一天的数据
@@ -75,7 +79,7 @@ class StrategyVol(StrategyBase):
         arr_b4 = list()
         arr_b5 = list()
         for item_code in lst_code_pool:
-            lst_stock_price = ds_tushare.getStockPriceLst(ts_code, lst_n_days[-1], lst_n_days[0])   
+            lst_stock_price = ds_tushare.get_stock_price_lst(item_code, lst_n_days[-1], lst_n_days[0])   
             if len(lst_stock_price) < self.n_days:
                 # 排除最近5个交易日有停牌情况的股票
                 continue
@@ -127,7 +131,7 @@ class StrategyVol(StrategyBase):
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
     strategy = StrategyVol()
-    lst_trade_date = ds_tushare.getTradeCal('20200101', '20200701')
+    lst_trade_date = ds_tushare.get_trade_cal('20200101', '20200701')
     cnt_loop = 0
     for item_date in lst_trade_date:
         cnt_loop += 1

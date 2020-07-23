@@ -308,7 +308,7 @@ class DataServiceTushare(object):
         self._build_trade_cal()
         self._build_basic()        
         self._build_index(update)
-        self._build_top_list()        
+        # self._build_top_list()        
         self.log.info('构建股票日K线数据')
         start = time()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
@@ -318,7 +318,9 @@ class DataServiceTushare(object):
             df_stock_k_data = self._get_daily_k_data_from_ts(d['ts_code'], update)       
             df_stock_daily_basic = self._get_daily_basic_from_ts(d['ts_code'], update)   
             if df_stock_k_data.empty is False and df_stock_daily_basic.empty is False:
-                df_stock_info = pd.merge(df_stock_k_data, df_stock_daily_basic)
+                del df_stock_daily_basic['ts_code']
+                del df_stock_daily_basic['close']
+                df_stock_info = pd.merge(df_stock_k_data, df_stock_daily_basic, on='trade_date')
             if d['list_date'] < self.date_now:
                 if update is True:
                     self._update_k_data(d['ts_code'], df_stock_info)
@@ -460,12 +462,16 @@ class DataServiceTushare(object):
     def get_stock_price_lst(self, code, begin_date, end_date):
         code_db = code.replace('.', '_')
         cl_stock_code = self.db[code_db]
+        ret_lst = list()
         stock_price_lst = cl_stock_code.find(
             {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
-        return stock_price_lst
+        for item in stock_price_lst:
+            ret_lst.append(item)
+        return ret_lst
 
     def get_stock_basic_info(self, code):
-        code_db = code.replace('.', '_')
+        # code_db = code.replace('.', '_')
+        code_db = code
         cl_stock_basic = self.db[CL_STOCK_BASIC]
         stock_basic_info = cl_stock_basic.find_one(
             {'ts_code': code_db}, {'_id': 0})
@@ -503,10 +509,10 @@ class DataServiceTushare(object):
         return list(trade_cal)[0]['cal_date']
 
     def get_pre_n_trade_date(self, trade_date, days):
-        # 获取上N个交易日
+        # 获取上N个交易日（若当前日期是交易日，则保留一并返回）
         cl_cal = self.db[CL_TRADE_CAL]
         trade_cal = cl_cal.find(
-            {'cal_date': {"$lt": trade_date}, 'is_open': 1},
+            {'cal_date': {"$lte": trade_date}, 'is_open': 1},
             {'_id': 0}).sort("cal_date", DESCENDING).limit(days)
         ret_lst = list()
         for item in trade_cal:

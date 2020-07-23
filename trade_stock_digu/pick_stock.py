@@ -9,7 +9,8 @@ if __name__ == "__main__":
     logger = Logger().getlog()
     ds_tushare = DataServiceTushare()
     strategy_vol = StrategyVol()
-    lst_picked = strategy_vol.pick_stock('20200722')
+    lst_picked = strategy_vol.pick_stock('20200721')
+    print('****************************************')
     print(lst_picked)
 
     # lst_trade_date = ds_tushare.getTradeCal(begin_date='20190101', end_date='20200331')
