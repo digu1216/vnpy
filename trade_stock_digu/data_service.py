@@ -7,6 +7,7 @@ import pandas as pd
 from enum import Enum
 from collections import deque
 import traceback
+import os
 
 from datetime import datetime
 from datetime import timedelta
@@ -24,7 +25,9 @@ from convert_utils import string_to_datetime, time_to_str
 from logger import Logger
 
 # 加载配置
-config = open('C:/vnstudio/Lib/site-packages/vnpy/trade_stock_digu/config.json')
+# config = open('C:/vnstudio/Lib/site-packages/vnpy/trade_stock_digu/config.json')
+path_config_file = os.path.dirname(os.path.abspath(__file__))
+config = open(path_config_file + '/config.json')
 setting = json.load(config)
 
 MONGO_HOST = setting['MONGO_HOST']
@@ -79,11 +82,9 @@ class DataServiceTushare(object):
     def get_stock_list(self):
         lst_code = list()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
-        stock_basic_lst = cl_stock_basic.find(
-            {}, {'_id': 0}).sort("ts_code", ASCENDING)
+        stock_basic_lst = list(cl_stock_basic.find(
+            {}, {'_id': 0}).sort("ts_code", ASCENDING))
         for d in stock_basic_lst:  
-            if '.' in d['ts_code']:
-                continue
             lst_code.append(d['ts_code'])
         return lst_code
 
@@ -92,9 +93,9 @@ class DataServiceTushare(object):
         # 1、如果当前日期就是交易日，则返回当前日期
         # 2、如果当前日期不是交易日，则返回当前日期之前的一个交易日
         cl_cal = self.db[CL_TRADE_CAL]
-        trade_cal = cl_cal.find(
+        trade_cal = list(cl_cal.find(
             {'cal_date': {"$lte": trade_date}, 'is_open': 1},
-            {'_id': 0}).sort("cal_date")
+            {'_id': 0}).sort("cal_date"))
         return list(trade_cal)[-1]['cal_date']
 
     def _is_in_vnpy_db(self, ts_code, update=True):
@@ -232,8 +233,7 @@ class DataServiceTushare(object):
                     self._build_db_vnpy(d)
                 flt = {'trade_date': d['trade_date']}
                 cl_stock_code.replace_one(flt, d, upsert=True)
-            rec = cl_stock_code.find({}).sort("trade_date", DESCENDING).limit(522)
-            rec = list(rec)
+            rec = list(cl_stock_code.find({}).sort("trade_date", DESCENDING).limit(522))
             rec.reverse()
             am = ArrayManager(size=600)
             last_5_vol = deque([0.0] * 5)
@@ -316,8 +316,8 @@ class DataServiceTushare(object):
         self.log.info('构建股票日K线数据')
         start = time()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
-        stock_basic_lst = cl_stock_basic.find(
-            {}, {'_id': 0}).sort("ts_code", ASCENDING)
+        stock_basic_lst = list(cl_stock_basic.find(
+            {}, {'_id': 0}).sort("ts_code", ASCENDING))
         for d in stock_basic_lst:    
             df_stock_k_data = self._get_daily_k_data_from_ts(d['ts_code'].replace('_', '.'), update)       
             df_stock_daily_basic = self._get_daily_basic_from_ts(d['ts_code'].replace('_', '.'), update)   
@@ -468,8 +468,8 @@ class DataServiceTushare(object):
     def get_stock_price_lst(self, code, begin_date, end_date):        
         cl_stock_code = self.db[code]
         ret_lst = list()
-        stock_price_lst = cl_stock_code.find(
-            {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
+        stock_price_lst = list(cl_stock_code.find(
+            {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date"))
         for item in stock_price_lst:
             ret_lst.append(item)
         return ret_lst
@@ -483,13 +483,13 @@ class DataServiceTushare(object):
     def get_trade_cal(self, begin_date, end_date=None):
         cl_cal = self.db[CL_TRADE_CAL]
         if end_date is None:
-            trade_cal = cl_cal.find(
+            trade_cal = list(cl_cal.find(
                 {'cal_date': {"$gte": begin_date}, 'is_open': 1},
-                {'_id': 0}).sort("cal_date")
+                {'_id': 0}).sort("cal_date"))
         else:
-            trade_cal = cl_cal.find(
+            trade_cal = list(cl_cal.find(
                 {'cal_date': {"$gte": begin_date, '$lte': end_date},
-                    'is_open': 1}, {'_id': 0}).sort("cal_date")
+                    'is_open': 1}, {'_id': 0}).sort("cal_date"))
         trade_cal_lst = list()
         for item in trade_cal:
             trade_cal_lst.append(item['cal_date'])
@@ -498,25 +498,25 @@ class DataServiceTushare(object):
     def get_next_trade_date(self, trade_date):
         # 获取下一个交易日
         cl_cal = self.db[CL_TRADE_CAL]
-        trade_cal = cl_cal.find(
+        trade_cal = list(cl_cal.find(
             {'cal_date': {"$gt": trade_date}, 'is_open': 1},
-            {'_id': 0}).sort("cal_date")
+            {'_id': 0}).sort("cal_date"))
         return list(trade_cal)[0]['cal_date']
 
     def get_pre_trade_date(self, trade_date):
         # 获取上一个交易日
         cl_cal = self.db[CL_TRADE_CAL]
-        trade_cal = cl_cal.find(
+        trade_cal = list(cl_cal.find(
             {'cal_date': {"$lt": trade_date}, 'is_open': 1},
-            {'_id': 0}).sort("cal_date", DESCENDING)
+            {'_id': 0}).sort("cal_date", DESCENDING))
         return list(trade_cal)[0]['cal_date']
 
     def get_pre_n_trade_date(self, trade_date, days):
         # 获取上N个交易日（若当前日期是交易日，则保留一并返回）
         cl_cal = self.db[CL_TRADE_CAL]
-        trade_cal = cl_cal.find(
+        trade_cal = list(cl_cal.find(
             {'cal_date': {"$lte": trade_date}, 'is_open': 1},
-            {'_id': 0}).sort("cal_date", DESCENDING).limit(days)
+            {'_id': 0}).sort("cal_date", DESCENDING).limit(days))
         ret_lst = list()
         for item in trade_cal:
             ret_lst.append(item['cal_date'])
@@ -524,8 +524,8 @@ class DataServiceTushare(object):
 
     def get_stock_top_lst(self, date):
         cl_stock_top_list = self.db[CL_STK_TOP_LIST]
-        top_list = cl_stock_top_list.find(
-            {'trade_date': date}, {'_id': 0})
+        top_list = list(cl_stock_top_list.find(
+            {'trade_date': date}, {'_id': 0}))
         stock_top_list = list()
         for item in top_list:
             stock_top_list.append(item)       
