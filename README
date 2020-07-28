@@ -1,3 +1,2 @@
 to do:
-
-1、修改DataService类中对于股票代码对应数据库的replace替换（参数传递采用000001.SZ的格式，入库或者去数据之前在对应函数底层中replace）get_stock_basic_info 入库 000001_SZ格式
+1、数据库重新更新后，删除 if '.' in d['ts_code']:   

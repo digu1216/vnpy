@@ -1,17 +1,58 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
 from data_service import DataServiceTushare
 from logger import Logger
 import tushare as ts
 from time import time, sleep
 from itertools import groupby
 from strategy_vol import StrategyVol
-        
+
+def rise_ma(percent = 8):
+    close_cur = np.array(list())
+    percent_cur = np.array(list())
+    close_pre = np.array(list())
+    ma5_pre = np.array(list())
+    ma10_pre = np.array(list())
+    ma20_pre = np.array(list())
+    ma30_pre = np.array(list())
+    ma60_pre = np.array(list())
+    ma120_pre = np.array(list())
+    ma250_pre = np.array(list())
+    ma500_pre = np.array(list())
+    ds_tushare = DataServiceTushare()
+    code_lst = ds_tushare.get_stock_list()
+    for item_code in code_lst:
+        k_data_lst = ds_tushare.get_stock_price_lst(item_code, '20100101', '20180101')
+        if len(k_data_lst) == 0:
+            continue
+        k_data_pre = k_data_lst.pop(0)
+        for item_price in k_data_lst:
+            if item_price['pct_chg'] > percent:
+                close_cur = np.append(close_cur, item_price['close'])
+                percent_cur = np.append(percent_cur, item_price['pct_chg'])
+                close_pre = np.append(close_pre, k_data_pre['close'])
+                ma5_pre = np.append(ma5_pre, k_data_pre['ma_5'])
+                ma10_pre = np.append(ma10_pre, k_data_pre['ma_10'])
+                ma20_pre = np.append(ma20_pre, k_data_pre['ma_20'])
+                ma30_pre = np.append(ma30_pre, k_data_pre['ma_30'])
+                ma60_pre = np.append(ma60_pre, k_data_pre['ma_60'])
+                ma120_pre = np.append(ma120_pre, k_data_pre['ma_120'])
+                ma250_pre = np.append(ma250_pre, k_data_pre['ma_250'])
+                ma500_pre = np.append(ma500_pre, k_data_pre['ma_500'])
+            k_data_pre = item_price
+    index = [0,1,2,3,4,5,6,7]
+    cnt_rise = float(len(percent_cur))
+    values = [np.sum(close_pre > ma5_pre)/cnt_rise, np.sum(close_pre > ma10_pre)/cnt_rise, np.sum(close_pre > ma20_pre)/cnt_rise, np.sum(close_pre > ma30_pre)/cnt_rise, \
+            np.sum(close_pre > ma60_pre)/cnt_rise, np.sum(close_pre > ma120_pre)/cnt_rise, np.sum(close_pre > ma250_pre)/cnt_rise, np.sum(close_pre > ma500_pre)/cnt_rise]
+    print(values)    
+    plt.bar(index, values)
+    plt.xticks(index,['5','10','20','30','60', '120', '250', '500'])
+    plt.show()
+
 if __name__ == "__main__":
     logger = Logger().getlog()
-    ds_tushare = DataServiceTushare()
-    strategy_vol = StrategyVol()
-    lst_picked = strategy_vol.pick_stock('20200721')
-    print('****************************************')
-    print(lst_picked)
+    rise_ma()
 
     # lst_trade_date = ds_tushare.getTradeCal(begin_date='20190101', end_date='20200331')
     # lst_date = list()

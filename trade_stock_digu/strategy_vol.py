@@ -12,7 +12,7 @@ class StrategyVol(StrategyBase):
     1、流通市值小于500亿
     2、选股当天自由流通股换手率>1%  turnover_rate_f_min
     3、股价未暴涨，一年最高价/最低价 < 4 pct_chg_max_year
-    4、多头排列 ma5>ma20>ma60>ma120>ma250,close>ma5,close<ma5*1.2
+    4、多头排列 ma5>ma10>ma30>ma60>ma120,close>ma5,close<ma5*pct_close_to_ma5
     5、上市时间超过n_years=2年
     6、当日非st
     按照量能在股票池中选股：
@@ -26,7 +26,7 @@ class StrategyVol(StrategyBase):
     turnover_rate_f_min = 0.01
     pct_chg_max_year = 4.0
     n_days = 5
-    pct_close_to_ma5 = 1.2
+    pct_close_to_ma5 = 0.06
     n_rank_turnover = 200
     n_rank_vol= 200
     n_years = 2
@@ -58,12 +58,17 @@ class StrategyVol(StrategyBase):
             if dic_stock_price is None:
                 # 排除选股日停牌的股票
                 continue   
-            if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < self.turnover_rate_f_min \
-                or dic_stock_price['high_250'] / dic_stock_price['low_250'] > self.pct_chg_max_year \
-                    or dic_stock_price['ma_250'] > dic_stock_price['ma_120'] or dic_stock_price['ma_120'] > dic_stock_price['ma_60'] \
-                        or dic_stock_price['ma_60'] > dic_stock_price['ma_20'] or dic_stock_price['ma_20'] > dic_stock_price['ma_5'] \
-                            or dic_stock_price['close'] > dic_stock_price['ma_5'] * self.pct_close_to_ma5:
-                continue
+            try:
+                if dic_stock_price['circ_mv']  > self.circ_mv_max or dic_stock_price['turnover_rate_f'] < self.turnover_rate_f_min \
+                    or dic_stock_price['high_250'] / dic_stock_price['low_250'] > self.pct_chg_max_year \
+                        or dic_stock_price['ma_120'] > dic_stock_price['ma_60'] or dic_stock_price['ma_60'] > dic_stock_price['ma_30'] \
+                            or dic_stock_price['ma_30'] > dic_stock_price['ma_10'] or dic_stock_price['ma_10'] > dic_stock_price['ma_5'] \
+                                or dic_stock_price['close'] > dic_stock_price['ma_5'] * (1 + self.pct_close_to_ma5) \
+                                    or dic_stock_price['close'] < dic_stock_price['ma_5'] * (1 - self.pct_close_to_ma5):
+                    continue
+            except:
+                self.logger.info('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+                self.logger.info(dic_stock_price)
             lst_code_pool.append(dic_stock_price['ts_code'])
         # self.logger.info(lst_code_pool)
         lst_n_days = ds_tushare.get_pre_n_trade_date(self.stock_picked_date, self.n_days)   # 日期从大到小排列

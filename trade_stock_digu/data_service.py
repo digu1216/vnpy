@@ -54,14 +54,18 @@ class TsCodeType(Enum):
 
 class DataServiceTushare(object):
     """封装tushare获取原始数据模块"""
+    """
+    ts_code: 在程序中采用000001_SZ的格式，调用tushare接口时替换为000001.SZ格式
+    """
 
     mc = MongoClient(MONGO_HOST, MONGO_PORT)  # Mongo连接
+    # mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
     db = mc[STOCK_DB_NAME]  # 数据库
     db_vnpy = mc[STOCK_DB_NAME_VNPY]  # 数据库
     log = Logger().getlog()
     count_max_retry = 10
     second_sleep = 60
-    index_lst = ['000001.SH', '399001.SZ', '399005.SZ', '399006.SZ']       
+    index_lst = ['000001_SH', '399001_SZ', '399005_SZ', '399006_SZ']       
 
     def __init__(self):
         """Constructor"""        
@@ -78,6 +82,8 @@ class DataServiceTushare(object):
         stock_basic_lst = cl_stock_basic.find(
             {}, {'_id': 0}).sort("ts_code", ASCENDING)
         for d in stock_basic_lst:  
+            if '.' in d['ts_code']:
+                continue
             lst_code.append(d['ts_code'])
         return lst_code
 
@@ -107,7 +113,7 @@ class DataServiceTushare(object):
             else:
                 # exchange = Exchange.SZSE
                 exchange = 'SZSE'
-            d_db_vnpy['symbol'] = d['ts_code'].replace('.', '_')
+            d_db_vnpy['symbol'] = d['ts_code']
             d_db_vnpy['exchange'] = exchange
             d_db_vnpy['datetime'] = string_to_datetime(d['trade_date'])
             d_db_vnpy['interval'] = 'd'
@@ -119,7 +125,7 @@ class DataServiceTushare(object):
             d_db_vnpy['close_price'] = d['close']
             flt_vnpy = {'symbol': d['ts_code'], 'datetime': d['trade_date'], 'exchange:': exchange, 'interval:': 'd',}        
             cl_stock_code_vnpy = self.db_vnpy[CL_STOCK_K_DATA_VNPY]
-            cl_stock_code_vnpy.ensure_index([('symbol', ASCENDING), ('exchange', ASCENDING), ('interval', ASCENDING), ('datetime', ASCENDING)], unique=True)
+            cl_stock_code_vnpy.create_index([('symbol', ASCENDING), ('exchange', ASCENDING), ('interval', ASCENDING), ('datetime', ASCENDING)], unique=True)
             cl_stock_code_vnpy.replace_one(flt_vnpy, d_db_vnpy, upsert=True)
 
     def _init_k_data(self, code, k_data):
@@ -131,13 +137,13 @@ class DataServiceTushare(object):
         if len(k_data) != 0:
             last_5_vol = deque([0.0] * 5)
             last_5_amount = deque([0.0] * 5)
-            k_data = k_data.sort_values(by='trade_date')
-            code = code.replace('.', '_')
+            k_data = k_data.sort_values(by='trade_date')            
             cl_stock_code = self.db[code]
-            cl_stock_code.ensure_index([('trade_date', ASCENDING)], unique=True)
+            cl_stock_code.create_index([('trade_date', ASCENDING)], unique=True)
             am = ArrayManager(size=600)
             for ix, row in k_data.iterrows():
                 d = row.to_dict()              
+                d['ts_code'] = d['ts_code'].replace('.', '_')
                 if 0.0 not in last_5_vol:
                     vol_rate = d['vol'] / (sum(last_5_vol) / 5.0)                
                     amount_rate = d['amount'] / (sum(last_5_amount) / 5.0)   
@@ -152,8 +158,7 @@ class DataServiceTushare(object):
                 last_5_amount.append(d['amount'])                   
                 if self._is_in_vnpy_db(d['ts_code'], update=False):
                     # 构建vnpy股票数据库数据
-                    self._build_db_vnpy(d)               
-                d['ts_code'] = d['ts_code'].replace('.', '_')
+                    self._build_db_vnpy(d)                               
                 if d['ts_code'][-3:] == '_SH':
                     exchange = Exchange.SSE
                     d['exchange'] = 'SSE'
@@ -213,15 +218,15 @@ class DataServiceTushare(object):
         @:param k_data  ts中获取的最新df数据
         """        
         if len(k_data) != 0:
-            k_data = k_data.sort_values(by='trade_date')
-            code = code.replace('.', '_')
+            k_data = k_data.sort_values(by='trade_date')            
             cl_stock_code = self.db[code]
-            cl_stock_code.ensure_index([('trade_date', ASCENDING)], unique=True)
+            cl_stock_code.create_index([('trade_date', ASCENDING)], unique=True)
             # 更新k线数据
             # 1、新增日K线入库
             # 2、遍历数据库找出最近的500+22(必须保证更新数据操作在22天以内进行)条数据并更新最后的22条的ma和最高 最低价
             for ix, row in k_data.iterrows():
                 d = row.to_dict()
+                d['ts_code'] = d['ts_code'].replace('.', '_')
                 if self._is_in_vnpy_db(d['ts_code'], update=True):
                     # 更新vnpy数据库数据                    
                     self._build_db_vnpy(d)
@@ -233,7 +238,7 @@ class DataServiceTushare(object):
             am = ArrayManager(size=600)
             last_5_vol = deque([0.0] * 5)
             last_5_amount = deque([0.0] * 5)
-            for d in rec:
+            for d in rec:                
                 if 0.0 not in last_5_vol:
                     vol_rate = d['vol'] / (sum(last_5_vol) / 5.0)               
                     amount_rate = d['amount'] / (sum(last_5_amount) / 5.0)   
@@ -245,8 +250,7 @@ class DataServiceTushare(object):
                 last_5_vol.popleft()
                 last_5_amount.popleft()
                 last_5_vol.append(d['vol'])
-                last_5_amount.append(d['amount'])                       
-                d['ts_code'] = d['ts_code'].replace('.', '_')
+                last_5_amount.append(d['amount'])                                       
                 if d['ts_code'][-3:] == '_SH':
                     exchange = Exchange.SSE
                     d['exchange'] = 'SSE'
@@ -297,7 +301,7 @@ class DataServiceTushare(object):
         df_trade_cal = self.pro.trade_cal(
             exchange='', start_date=DATA_BEGIN_DATE, end_date=self.date_now)
         cl_trade_cal = self.db[CL_TRADE_CAL]
-        cl_trade_cal.ensure_index([('cal_date', ASCENDING)], unique=True)
+        cl_trade_cal.create_index([('cal_date', ASCENDING)], unique=True)
         for ix, row in df_trade_cal.iterrows():
             d = row.to_dict()
             flt = {'cal_date': d['cal_date']}
@@ -308,15 +312,15 @@ class DataServiceTushare(object):
         self._build_trade_cal()
         self._build_basic()        
         self._build_index(update)
-        # self._build_top_list()        
+        self._build_top_list()        
         self.log.info('构建股票日K线数据')
         start = time()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
         stock_basic_lst = cl_stock_basic.find(
             {}, {'_id': 0}).sort("ts_code", ASCENDING)
         for d in stock_basic_lst:    
-            df_stock_k_data = self._get_daily_k_data_from_ts(d['ts_code'], update)       
-            df_stock_daily_basic = self._get_daily_basic_from_ts(d['ts_code'], update)   
+            df_stock_k_data = self._get_daily_k_data_from_ts(d['ts_code'].replace('_', '.'), update)       
+            df_stock_daily_basic = self._get_daily_basic_from_ts(d['ts_code'].replace('_', '.'), update)   
             if df_stock_k_data.empty is False and df_stock_daily_basic.empty is False:
                 del df_stock_daily_basic['ts_code']
                 del df_stock_daily_basic['close']
@@ -337,13 +341,14 @@ class DataServiceTushare(object):
 
     def _build_index(self, update=True):
         self.log.info('构建指数K线数据')        
-        for code in self.index_lst:
-            df_index = self._get_index_daily_k_data_from_ts(code, update)        
+        for code_db in self.index_lst:
+            code = code_db.replace('_', '.')
+            df_index = self._get_index_daily_k_data_from_ts(code, update)              
             if df_index.empty is False:
                 if update is True:            
-                    self._update_k_data(code, df_index)
+                    self._update_k_data(code_db, df_index)
                 else:
-                    self._init_k_data(code, df_index)
+                    self._init_k_data(code_db, df_index)
         self.log.info('构建指数K线数据完成')
 
     def _build_top_list(self):
@@ -357,8 +362,9 @@ class DataServiceTushare(object):
             if df_top_list.size != 0:
                 for ix_top_list, row_top_list in df_top_list.iterrows():
                     d_top_list = row_top_list.to_dict()
+                    d_top_list['ts_code'] = d_top_list['ts_code'].replace('.', '_')
                     cl_stk_top_list = self.db[CL_STK_TOP_LIST]
-                    flt_top_list = {'trade_date': item_date, 'ts_code': d_top_list['ts_code'].replace('.', '_')}
+                    flt_top_list = {'trade_date': item_date, 'ts_code': d_top_list['ts_code']}
                     cl_stk_top_list.replace_one(flt_top_list, d_top_list, upsert=True)  
         self.log.info('构建龙虎榜数据完成')
 
@@ -368,10 +374,11 @@ class DataServiceTushare(object):
             exchange='', list_status='L',
             fields='ts_code,symbol,name,area,industry,market,list_date')
         cl_stock_basic = self.db[CL_STOCK_BASIC]
-        cl_stock_basic.ensure_index([('ts_code', ASCENDING)], unique=True)
+        cl_stock_basic.create_index([('ts_code', ASCENDING)], unique=True)
         for ix, row in data.iterrows():
             d = row.to_dict()
-            flt = {'ts_code': d['ts_code'].replace('.', '_')}
+            d['ts_code'] = d['ts_code'].replace('.', '_')
+            flt = {'ts_code': d['ts_code']}
             cl_stock_basic.replace_one(flt, d, upsert=True)
         self.log.info('构建股票基础信息完成')
 
@@ -452,16 +459,14 @@ class DataServiceTushare(object):
         df_index_k_data.fillna(0.0, inplace=True)
         return df_index_k_data
 
-    def get_stock_price_info(self, code, date):
-        code_db = code.replace('.', '_')
-        cl_stock_code = self.db[code_db]
+    def get_stock_price_info(self, code, date):        
+        cl_stock_code = self.db[code]
         stock_price_info = cl_stock_code.find_one(
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
-    def get_stock_price_lst(self, code, begin_date, end_date):
-        code_db = code.replace('.', '_')
-        cl_stock_code = self.db[code_db]
+    def get_stock_price_lst(self, code, begin_date, end_date):        
+        cl_stock_code = self.db[code]
         ret_lst = list()
         stock_price_lst = cl_stock_code.find(
             {'trade_date': {"$gte": begin_date, '$lte': end_date}}, {'_id': 0}).sort("trade_date")
@@ -469,12 +474,10 @@ class DataServiceTushare(object):
             ret_lst.append(item)
         return ret_lst
 
-    def get_stock_basic_info(self, code):
-        # code_db = code.replace('.', '_')
-        code_db = code
+    def get_stock_basic_info(self, code):            
         cl_stock_basic = self.db[CL_STOCK_BASIC]
         stock_basic_info = cl_stock_basic.find_one(
-            {'ts_code': code_db}, {'_id': 0})
+            {'ts_code': code}, {'_id': 0})
         return stock_basic_info
 
     def get_trade_cal(self, begin_date, end_date=None):

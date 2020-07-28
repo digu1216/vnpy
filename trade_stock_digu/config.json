@@ -3,7 +3,7 @@
 	"MONGO_PORT": 27017,
 	"DB_NAME": "stock_digu",
 	"DB_NAME_VNPY": "stock_vnpy",
-	"DATA_BEGIN_DATE": "20150101",
+	"DATA_BEGIN_DATE": "20120101",
 	"CL_STOCK_K_DATA_VNPY": "db_bar_data",
 	"CL_STOCK_DATE": "stock_date",
 	"CL_STOCK_BASIC": "stock_basic",
