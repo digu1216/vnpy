@@ -136,13 +136,14 @@ class StrategyVol(StrategyBase):
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
     strategy = StrategyVol()
-    lst_trade_date = ds_tushare.get_trade_cal('20200101', '20200701')
-    cnt_loop = 0
-    for item_date in lst_trade_date:
-        cnt_loop += 1
-        if cnt_loop % 5 == 0:
-            # 换股日
-            strategy.pick_stock(item_date)
+    print(strategy.pick_stock('20200729'))
+    # lst_trade_date = ds_tushare.get_trade_cal('20200101', '20200701')
+    # cnt_loop = 0
+    # for item_date in lst_trade_date:
+    #     cnt_loop += 1
+    #     if cnt_loop % 5 == 0:
+    #         # 换股日
+    #         strategy.pick_stock(item_date)
 
 """
 to do:

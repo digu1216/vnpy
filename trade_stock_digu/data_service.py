@@ -32,6 +32,8 @@ setting = json.load(config)
 
 MONGO_HOST = setting['MONGO_HOST']
 MONGO_PORT = setting['MONGO_PORT']
+MONGO_USER = setting['MONGO_USER']
+MONGO_PASSWORD = setting['MONGO_PASSWORD']
 STOCK_DB_NAME = setting['DB_NAME']
 STOCK_DB_NAME_VNPY = setting['DB_NAME_VNPY']
 CL_STOCK_K_DATA_VNPY = setting['CL_STOCK_K_DATA_VNPY']
@@ -61,8 +63,8 @@ class DataServiceTushare(object):
     ts_code: 在程序中采用000001_SZ的格式，调用tushare接口时替换为000001.SZ格式
     """
 
-    mc = MongoClient(MONGO_HOST, MONGO_PORT)  # Mongo连接
-    # mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
+    # mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
+    mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
     db = mc[STOCK_DB_NAME]  # 数据库
     db_vnpy = mc[STOCK_DB_NAME_VNPY]  # 数据库
     log = Logger().getlog()
@@ -337,7 +339,7 @@ class DataServiceTushare(object):
         cl_stock_db_date.replace_one(flt_date, db_date, upsert=True)
         end = time()
         cost = (end - start)/3600
-        self.log.info('构建股票日K线数据完成，耗时%s小时' % cost)
+        self.log.info('构建股票日K线数据完成，耗时%s小时' % cost)        
 
     def _build_index(self, update=True):
         self.log.info('构建指数K线数据')        
@@ -353,8 +355,9 @@ class DataServiceTushare(object):
 
     def _build_top_list(self):
         # 构建龙虎榜数据                
-        self.log.info('构建龙虎榜数据')     
-        begin_date = '20050101' if self.db_date < '20050101' else self.db_date  # 龙虎榜数据只有2005年之后的数据
+        self.log.info('构建龙虎榜数据')             
+        date_top_list = self.get_pre_trade_date(self.db_date) if DATA_BEGIN_DATE != self.db_date else self.db_date  # 用前一天和当天的数据更新龙虎榜（防止当天更新db时，龙虎榜tushare接口数据还未生成）
+        begin_date = '20050101' if date_top_list < '20050101' else date_top_list  # 龙虎榜数据只有2005年之后的数据
         trade_lst = self.get_trade_cal(begin_date)
         for item_date in trade_lst:
             df_top_list = self.pro.top_list(trade_date=item_date)
