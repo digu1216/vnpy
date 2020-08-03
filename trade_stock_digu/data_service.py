@@ -63,8 +63,8 @@ class DataServiceTushare(object):
     ts_code: 在程序中采用000001_SZ的格式，调用tushare接口时替换为000001.SZ格式
     """
 
-    # mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
-    mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
+    mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
+    # mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
     db = mc[STOCK_DB_NAME]  # 数据库
     db_vnpy = mc[STOCK_DB_NAME_VNPY]  # 数据库
     log = Logger().getlog()
