@@ -20,9 +20,8 @@ from vnpy.app.cta_strategy import (
     ArrayManager
 )
 from vnpy.trader.constant import Exchange
-
-from convert_utils import string_to_datetime, time_to_str
-from logger import Logger
+from vnpy.tools.convert_utils import string_to_datetime, time_to_str
+from vnpy.tools.logger import Logger
 
 # 加载配置
 # config = open('C:/vnstudio/Lib/site-packages/vnpy/trade_stock_digu/config.json')
@@ -48,7 +47,11 @@ CL_PLEDGE_STAT = setting['CL_PLEDGE_STAT']
 CL_REPURCHASE = setting['CL_REPURCHASE']
 CL_STK_HOLDERNUMBER = setting['CL_STK_HOLDERNUMBER']
 CL_STK_HOLDERTRADE = setting['CL_STK_HOLDERTRADE']
+CL_STK_POOL_DAILY = setting['CL_STK_POOL_DAILY']
+CL_STK_POOL_CUR = setting['CL_STK_POOL_CUR']
 CL_STK_TOP_LIST = setting['CL_STK_TOP_LIST']
+
+LOG = Logger().getlog()
 
 class TsCodeType(Enum):
     """
@@ -63,11 +66,10 @@ class DataServiceTushare(object):
     ts_code: 在程序中采用000001_SZ的格式，调用tushare接口时替换为000001.SZ格式
     """
 
-    mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
-    # mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
+    # mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
+    mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
     db = mc[STOCK_DB_NAME]  # 数据库
     db_vnpy = mc[STOCK_DB_NAME_VNPY]  # 数据库
-    log = Logger().getlog()
     count_max_retry = 10
     second_sleep = 60
     index_lst = ['000001_SH', '399001_SZ', '399005_SZ', '399006_SZ']       
@@ -183,10 +185,10 @@ class DataServiceTushare(object):
                     d['ma_5'] = am.sma(5)
                 except:
                     traceback.print_exc()                    
-                    self.log.error('************************')
-                    self.log.error(d['ts_code'])
-                    self.log.error(d['trade_date'])
-                    self.log.error(bar)
+                    LOG.error('************************')
+                    LOG.error(d['ts_code'])
+                    LOG.error(d['trade_date'])
+                    LOG.error(bar)
                 d['ma_10'] = am.sma(10)
                 d['ma_20'] = am.sma(20)
                 d['ma_30'] = am.sma(30)
@@ -299,7 +301,7 @@ class DataServiceTushare(object):
                     cl_stock_code.replace_one(flt, d, upsert=True)
 
     def _build_trade_cal(self):
-        self.log.info('构建交易日日历数据')
+        LOG.info('构建交易日日历数据')
         df_trade_cal = self.pro.trade_cal(
             exchange='', start_date=DATA_BEGIN_DATE, end_date=self.date_now)
         cl_trade_cal = self.db[CL_TRADE_CAL]
@@ -308,14 +310,14 @@ class DataServiceTushare(object):
             d = row.to_dict()
             flt = {'cal_date': d['cal_date']}
             cl_trade_cal.replace_one(flt, d, upsert=True)
-        self.log.info('构建交易日日历数据完成')
+        LOG.info('构建交易日日历数据完成')
 
     def build_stock_data(self, update=True):
         self._build_trade_cal()
         self._build_basic()        
         self._build_index(update)
         self._build_top_list()        
-        self.log.info('构建股票日K线数据')
+        LOG.info('构建股票日K线数据')
         start = time()
         cl_stock_basic = self.db[CL_STOCK_BASIC]
         stock_basic_lst = list(cl_stock_basic.find(
@@ -339,10 +341,10 @@ class DataServiceTushare(object):
         cl_stock_db_date.replace_one(flt_date, db_date, upsert=True)
         end = time()
         cost = (end - start)/3600
-        self.log.info('构建股票日K线数据完成，耗时%s小时' % cost)        
+        LOG.info('构建股票日K线数据完成，耗时%s小时' % cost)        
 
     def _build_index(self, update=True):
-        self.log.info('构建指数K线数据')        
+        LOG.info('构建指数K线数据')        
         for code_db in self.index_lst:
             code = code_db.replace('_', '.')
             df_index = self._get_index_daily_k_data_from_ts(code, update)              
@@ -351,11 +353,11 @@ class DataServiceTushare(object):
                     self._update_k_data(code_db, df_index)
                 else:
                     self._init_k_data(code_db, df_index)
-        self.log.info('构建指数K线数据完成')
+        LOG.info('构建指数K线数据完成')
 
     def _build_top_list(self):
         # 构建龙虎榜数据                
-        self.log.info('构建龙虎榜数据')             
+        LOG.info('构建龙虎榜数据')             
         date_top_list = self.get_pre_trade_date(self.db_date) if DATA_BEGIN_DATE != self.db_date else self.db_date  # 用前一天和当天的数据更新龙虎榜（防止当天更新db时，龙虎榜tushare接口数据还未生成）
         begin_date = '20050101' if date_top_list < '20050101' else date_top_list  # 龙虎榜数据只有2005年之后的数据
         trade_lst = self.get_trade_cal(begin_date)
@@ -369,10 +371,10 @@ class DataServiceTushare(object):
                     cl_stk_top_list = self.db[CL_STK_TOP_LIST]
                     flt_top_list = {'trade_date': item_date, 'ts_code': d_top_list['ts_code']}
                     cl_stk_top_list.replace_one(flt_top_list, d_top_list, upsert=True)  
-        self.log.info('构建龙虎榜数据完成')
+        LOG.info('构建龙虎榜数据完成')
 
     def _build_basic(self):
-        self.log.info('构建股票基础信息')
+        LOG.info('构建股票基础信息')
         data = self.pro.stock_basic(
             exchange='', list_status='L',
             fields='ts_code,symbol,name,area,industry,market,list_date')
@@ -383,7 +385,7 @@ class DataServiceTushare(object):
             d['ts_code'] = d['ts_code'].replace('.', '_')
             flt = {'ts_code': d['ts_code']}
             cl_stock_basic.replace_one(flt, d, upsert=True)
-        self.log.info('构建股票基础信息完成')
+        LOG.info('构建股票基础信息完成')
 
     def _get_daily_basic_from_ts(self, code, update=True):        
         start_date = DATA_BEGIN_DATE
@@ -397,11 +399,11 @@ class DataServiceTushare(object):
                 if df_daily_basic is not None:
                     break
                 else:                    
-                    self.log.info('(%s)调用tushare pro.daily_basic失败，空数据' % (code))
+                    LOG.info('(%s)调用tushare pro.daily_basic失败，空数据' % (code))
                     break
             except:
                 count += 1
-                self.log.info('(%s)调用tushare pro.daily_basic失败，重试次数：%s' % (code, count))
+                LOG.info('(%s)调用tushare pro.daily_basic失败，重试次数：%s' % (code, count))
                 if count > self.count_max_retry:
                     break
                 sleep(self.second_sleep)  
@@ -423,11 +425,11 @@ class DataServiceTushare(object):
                 if df_k_data is not None:
                     break
                 else:                    
-                    self.log.info('(%s)调用tushare ts.pro_bar失败，空数据' % (code))
+                    LOG.info('(%s)调用tushare ts.pro_bar失败，空数据' % (code))
                     break
             except:
                 count += 1
-                self.log.info('(%s)调用tushare ts.pro_bar失败，重试次数：%s' % (code, count))
+                LOG.info('(%s)调用tushare ts.pro_bar失败，重试次数：%s' % (code, count))
                 if count > self.count_max_retry:
                     break
                 sleep(self.second_sleep)
@@ -449,11 +451,11 @@ class DataServiceTushare(object):
                 if df_index_k_data is not None:
                     break
                 else:                    
-                    self.log.info('(%s)调用tushare pro.index_daily失败，空数据' %(code))
+                    LOG.info('(%s)调用tushare pro.index_daily失败，空数据' %(code))
                     break
             except:
                 count += 1
-                self.log.info('(%s)调用tushare pro.index_daily失败，重试次数：%s' % (code, count))
+                LOG.info('(%s)调用tushare pro.index_daily失败，重试次数：%s' % (code, count))
                 if count > self.count_max_retry:
                     break
                 sleep(self.second_sleep)    
@@ -533,6 +535,67 @@ class DataServiceTushare(object):
         for item in top_list:
             stock_top_list.append(item)       
         return stock_top_list
+
+    def daily_stock_pool_in_db(self, code_lst, date):
+        LOG.info('每日股票池数据入库')
+        cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]
+        cl_stk_pool_daily.create_index([('date', ASCENDING), ('ts_code', ASCENDING)])
+        for code in code_lst:
+            d = {'date_buy': date, 'ts_code': code, 'date_sell': None}
+            flt = {'date_buy': date, 'ts_code': code}
+            cl_stk_pool_daily.replace_one(flt, d, upsert=True)
+        LOG.info('每日股票池数据入库完成')
+
+    def cur_stock_pool_in_db(self, code_lst, date):
+        LOG.info('当前股票池数据入库')
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        cl_stk_pool_cur.create_index([('date', ASCENDING), ('ts_code', ASCENDING)])
+        lst_code_pre = self.get_cur_stock_pool(self.get_pre_trade_date(date))
+        lst_union = list(set(lst_code_pre).union(set(code_lst)))
+        for code in lst_union:
+            d = {'date': date, 'ts_code': code}
+            flt = {'date': date, 'ts_code': code}
+            cl_stk_pool_cur.replace_one(flt, d, upsert=True)
+        LOG.info('当前股票池数据入库完成')
+    
+    def get_cur_stock_pool(self, date):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        ret = list(cl_stk_pool_cur.find(
+            {'date': date}, {'_id': 0}))
+        lst_code = list()
+        for item in ret:
+            lst_code.append(item['ts_code'])       
+        return lst_code
+
+    def del_cur_stock_pool(self, lst_code, date):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        for code in lst_code:
+            del_query = {"ts_code": code, 'date':date}
+            cl_stk_pool_cur.delete_one(del_query)
+
+    def set_daily_stock_pool(self, lst_code, date):
+        cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]
+        for code in lst_code:
+            set_query = {"ts_code": code}
+            cl_stk_pool_daily.update(set_query,{"$set":{'date_sell':date}})
+
+    def get_cur_stock_pool_date_lst(self):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        ret = list(cl_stk_pool_cur.find().sort("date", pymongo.ASCENDING))
+        lst_date = list()
+        for item in ret:
+            if item['date'] not in lst_date:
+                lst_date.append(item['date'])       
+        return lst_date
+
+    def get_cur_stock_pool_stock_lst(self, date):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        ret = list(cl_stk_pool_cur.find({'date': date}, {'_id': 0}))
+        lst_date = list()
+        for item in ret:
+            if item['date'] not in lst_date:
+                lst_date.append(item['date'])       
+        return lst_date
 
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
