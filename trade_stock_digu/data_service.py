@@ -498,24 +498,24 @@ class DataServiceTushare(object):
             trade_cal_lst.append(item['cal_date'])
         return trade_cal_lst
 
-    def get_next_trade_date(self, trade_date):
-        # 获取下一个交易日
+    def get_next_trade_date(self, trade_date, n=1):
+        # 获取下N个交易日日期
         cl_cal = self.db[CL_TRADE_CAL]
         trade_cal = list(cl_cal.find(
             {'cal_date': {"$gt": trade_date}, 'is_open': 1},
             {'_id': 0}).sort("cal_date"))
-        return list(trade_cal)[0]['cal_date']
+        return list(trade_cal)[n-1]['cal_date']
 
-    def get_pre_trade_date(self, trade_date):
-        # 获取上一个交易日
+    def get_pre_trade_date(self, trade_date, n=1):
+        # 获取上N个交易日日期
         cl_cal = self.db[CL_TRADE_CAL]
         trade_cal = list(cl_cal.find(
             {'cal_date': {"$lt": trade_date}, 'is_open': 1},
             {'_id': 0}).sort("cal_date", DESCENDING))
-        return list(trade_cal)[0]['cal_date']
+        return list(trade_cal)[n-1]['cal_date']
 
     def get_pre_n_trade_date(self, trade_date, days):
-        # 获取上N个交易日（若当前日期是交易日，则保留一并返回）
+        # 获取上N个交易日列表（若当前日期是交易日，则保留一并返回）
         cl_cal = self.db[CL_TRADE_CAL]
         trade_cal = list(cl_cal.find(
             {'cal_date': {"$lte": trade_date}, 'is_open': 1},

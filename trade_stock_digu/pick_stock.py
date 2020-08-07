@@ -50,9 +50,36 @@ def rise_ma(percent = 8):
     plt.xticks(index,['5','10','20','30','60', '120', '250', '500'])
     plt.show()
 
+def short_line_ma(days = 5):
+    # 连续n天股价 ma5*1.08>收盘价>=ma5, 最低价>=ma10,ma10*1.05>ma5
+    # ma5>ma10>ma20>ma60>ma120
+    ds_tushare = DataServiceTushare()
+    lst_code_picked = list()
+    code_lst = ds_tushare.get_stock_list()
+    for item_code in code_lst:
+        date_begin = ds_tushare.get_pre_trade_date('202200804', days)
+        k_data_lst = ds_tushare.get_stock_price_lst(item_code, date_begin, '202200804')
+        if len(k_data_lst) == 0:
+            continue
+        cnt = 0
+        for item_price in k_data_lst:
+            if item_price['close'] < item_price['ma_5'] or item_price['close'] > item_price['ma_5'] * 1.08 or item_price['low'] < item_price['ma_10']:
+                break
+            if item_price['ma_5'] > item_price['ma_10'] * 1.05:
+                break
+            if item_price['ma_120'] > item_price['ma_60'] or item_price['ma_60'] > item_price['ma_30'] or item_price['ma_30'] > item_price['ma_20'] \
+                or item_price['ma_20'] > item_price['ma_10'] or item_price['ma_10'] > item_price['ma_5']:
+                break
+            cnt += 1
+            if cnt == days:
+                print(item_price['ts_code'])
+                lst_code_picked.append(item_price['ts_code'])
+    print(lst_code_picked)
+
 if __name__ == "__main__":
     logger = Logger().getlog()
-    rise_ma()
+    # rise_ma()
+    short_line_ma()
 
     # lst_trade_date = ds_tushare.getTradeCal(begin_date='20190101', end_date='20200331')
     # lst_date = list()
