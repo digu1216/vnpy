@@ -13,8 +13,11 @@ class StrategyBullBack(StrategyBase):
     2、股价最近一年未暴涨(high_250/low_250<3)
     3、中长期均线斜率向上(ma120>ma120_preday,ma250>ma250_preday)
     4、当前股价比high_30回调20%以上
-    5、股价回调至长期均线位置（ma120，ma250，ma500）
-    
+    5、股价回调至长期均线位置（ma60，ma120,ma250）
+
+    待补充：
+    长期均线半年以上时间未触碰
+    机构密集持股股票  
     """
     n_years = 2
     ma_long = 250
@@ -47,7 +50,7 @@ class StrategyBullBack(StrategyBase):
                 if dic_stock_price['high_250'] / dic_stock_price['low_250'] < 4 \
                     and dic_stock_price['ma_60'] > dic_stock_price['ma_120'] and dic_stock_price['ma_120'] > dic_stock_price['ma_250'] \
                         and dic_stock_price['ma_250'] > dic_stock_price['ma_500'] and dic_stock_price['close'] < dic_stock_price['high_30'] * 0.8\
-                            and dic_stock_price['close'] > dic_stock_price['ma_60'] * 0.98 and dic_stock_price['close'] < dic_stock_price['ma_60'] * 1.02:
+                            and dic_stock_price['close'] > dic_stock_price['ma_250'] * 0.98 and dic_stock_price['close'] < dic_stock_price['ma_250'] * 1.02:
                     date_pre = ds_tushare.get_pre_trade_date(date_picked)
                     price_pre = ds_tushare.get_stock_price_info(ts_code, date_pre)
                     if dic_stock_price['ma_500'] > price_pre['ma_500'] and dic_stock_price['ma_250'] > price_pre['ma_250'] and dic_stock_price['ma_120'] > price_pre['ma_120']:
@@ -61,7 +64,7 @@ class StrategyBullBack(StrategyBase):
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
     strategy = StrategyBullBack()
-    print(strategy.pick_stock('20200806'))
+    print(strategy.pick_stock('20200807'))
     # lst_trade_date = ds_tushare.get_trade_cal('20200101', '20200701')
     # cnt_loop = 0
     # for item_date in lst_trade_date:

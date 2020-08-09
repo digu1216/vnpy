@@ -53,6 +53,27 @@ CL_STK_TOP_LIST = setting['CL_STK_TOP_LIST']
 
 LOG = Logger().getlog()
 
+class IndexCode:
+    INDEX_SH = '000001_SH'
+    INDEX_SZ = '399001_SZ'
+    INDEX_ZX = '399005_SZ'
+    INDEX_CY = '399006_SZ'
+    
+    _VALUES_TO_NAMES = {
+        '000001_SH': "INDEX_SH",
+        '399001_SZ': "INDEX_SZ",
+        '399005_SZ': "INDEX_ZX",
+        '399006_SZ': "INDEX_CY",
+    }
+    
+    _NAMES_TO_VALUES = {
+        "INDEX_SH": '000001_SH',
+        "INDEX_SZ": '399001_SZ',
+        "INDEX_ZX": '399005_SZ',
+        "INDEX_CY": '399006_SZ',
+    }
+    
+
 class TsCodeType(Enum):
     """
     交易代码类型 1: 股票  2：指数
@@ -66,8 +87,8 @@ class DataServiceTushare(object):
     ts_code: 在程序中采用000001_SZ的格式，调用tushare接口时替换为000001.SZ格式
     """
 
-    # mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
-    mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
+    mc = MongoClient(MONGO_HOST, MONGO_PORT, username=MONGO_USER, password=MONGO_PASSWORD)  # Mongo连接
+    # mc = MongoClient("mongodb://124.70.183.208:27017/", username='root', password='qiuqiu78')
     db = mc[STOCK_DB_NAME]  # 数据库
     db_vnpy = mc[STOCK_DB_NAME_VNPY]  # 数据库
     count_max_retry = 10
@@ -550,7 +571,7 @@ class DataServiceTushare(object):
         LOG.info('当前股票池数据入库')
         cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
         cl_stk_pool_cur.create_index([('date', ASCENDING), ('ts_code', ASCENDING)])
-        lst_code_pre = self.get_cur_stock_pool(self.get_pre_trade_date(date))
+        lst_code_pre = self.get_cur_stock_pool_code_lst(self.get_pre_trade_date(date))
         lst_union = list(set(lst_code_pre).union(set(code_lst)))
         for code in lst_union:
             d = {'date': date, 'ts_code': code}
@@ -559,6 +580,15 @@ class DataServiceTushare(object):
         LOG.info('当前股票池数据入库完成')
     
     def get_cur_stock_pool(self, date):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        ret = list(cl_stk_pool_cur.find(
+            {'date': date}, {'_id': 0}))
+        lst_info = list()
+        for item in ret:
+            lst_info.append(item)       
+        return lst_info
+
+    def get_cur_stock_pool_code_lst(self, date):
         cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
         ret = list(cl_stk_pool_cur.find(
             {'date': date}, {'_id': 0}))
@@ -576,26 +606,27 @@ class DataServiceTushare(object):
     def set_daily_stock_pool(self, lst_code, date):
         cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]
         for code in lst_code:
-            set_query = {"ts_code": code}
-            cl_stk_pool_daily.update(set_query,{"$set":{'date_sell':date}})
+            set_query = {"ts_code": code, "date_sell": None}
+            cl_stk_pool_daily.update_one(set_query,{"$set":{'date_sell':date}})
 
     def get_cur_stock_pool_date_lst(self):
         cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
-        ret = list(cl_stk_pool_cur.find().sort("date", pymongo.ASCENDING))
+        ret = list(cl_stk_pool_cur.find().sort("date", ASCENDING))
         lst_date = list()
         for item in ret:
             if item['date'] not in lst_date:
                 lst_date.append(item['date'])       
         return lst_date
 
-    def get_cur_stock_pool_stock_lst(self, date):
-        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
-        ret = list(cl_stk_pool_cur.find({'date': date}, {'_id': 0}))
-        lst_date = list()
-        for item in ret:
-            if item['date'] not in lst_date:
-                lst_date.append(item['date'])       
-        return lst_date
+    def get_daily_stock_pool(self, date):
+        cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]
+        ret = list(cl_stk_pool_daily.find({'date_buy': date}, {'_id': 0}))     
+        return ret
+    
+    def get_daily_stock(self, code):
+        cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]
+        ret = cl_stk_pool_daily.find_one({'ts_code': code}, {'_id': 0})
+        return ret
 
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
