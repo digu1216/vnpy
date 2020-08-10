@@ -15,6 +15,10 @@ ds_tushare = DataServiceTushare()
 lst_stock = ds_tushare.get_stock_list()   
 lst_ma5 = list()
 lst_ma10 = list()
+lst_ma20 = list()
+lst_ma30 = list()
+lst_ma60 = list()
+lst_ma120 = list()
 lst_close = list()
 lst_pct_chg = list()
 for item_stock in lst_stock:
@@ -27,6 +31,10 @@ for item_stock in lst_stock:
     for item_price in lst_price_code:
         lst_ma5.append(item_price['ma_5'])
         lst_ma10.append(item_price['ma_10'])
+        lst_ma20.append(item_price['ma_20'])
+        lst_ma30.append(item_price['ma_30'])
+        lst_ma60.append(item_price['ma_60'])
+        lst_ma120.append(item_price['ma_120'])
         lst_close.append(item_price['close'])
         lst_pct_chg_code.append(item_price['pct_chg'])   
     arr_pct_chg_code = np.array(lst_pct_chg_code)
@@ -34,6 +42,10 @@ for item_stock in lst_stock:
     arr_pct_chg_code = (arr_pct_chg_code > 0.0).astype(int)
     lst_ma5.pop()
     lst_ma10.pop()
+    lst_ma20.pop()
+    lst_ma30.pop()
+    lst_ma60.pop()
+    lst_ma120.pop()
     lst_close.pop()
     try:
         arr_pct_chg_code = np.delete(arr_pct_chg_code, -1)
@@ -42,10 +54,18 @@ for item_stock in lst_stock:
     lst_pct_chg += list(arr_pct_chg_code)        
 arr_ma5 = np.array(lst_ma5)
 arr_ma10 = np.array(lst_ma10)
+arr_ma20 = np.array(lst_ma20)
+arr_ma30 = np.array(lst_ma30)
+arr_ma60 = np.array(lst_ma60)
+arr_ma120 = np.array(lst_ma120)
 arr_close = np.array(lst_close)    
 arr_ma5_sub_close = (arr_close - arr_ma5)*100/arr_close
 arr_ma10_sub_close = (arr_close - arr_ma10)*100/arr_close
+arr_ma20_sub_close = (arr_close - arr_ma20)*100/arr_close
+arr_ma30_sub_close = (arr_close - arr_ma30)*100/arr_close
+arr_ma60_sub_close = (arr_close - arr_ma60)*100/arr_close
+arr_ma120_sub_close = (arr_close - arr_ma120)*100/arr_close
 arr_pct_chg = np.array(lst_pct_chg)
-X = np.vstack((arr_ma5_sub_close, arr_ma10_sub_close))
+X = np.vstack((arr_ma5_sub_close, arr_ma10_sub_close, arr_ma20_sub_close, arr_ma30_sub_close, arr_ma60_sub_close, arr_ma120_sub_close))
 y = arr_pct_chg
-    
+y_close = arr_close
