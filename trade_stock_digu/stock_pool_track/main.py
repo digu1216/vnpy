@@ -80,9 +80,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # 定义MyFigure类的实例 
         self.F_his = MyFigure(width=3, height=2, dpi=100)
         self.F_cur = MyFigure(width=3, height=2, dpi=100)
-        self.__ui.dateEdit_cur.setDate(QtCore.QDate.fromString(time_to_str(datetime.now(), '%Y%m%d'), 'yyyyMMdd'))
-        self.__ui.dateEdit_daily.setDate(QtCore.QDate.fromString(time_to_str(datetime.now(), '%Y%m%d'), 'yyyyMMdd'))        
-        self.__ui.dateEdit_oper.setDate(QtCore.QDate.fromString(time_to_str(datetime.now(), '%Y%m%d'), 'yyyyMMdd'))                        
+        date_now = time_to_str(datetime.now(), '%Y%m%d')        
+        date_trade_last = self.ds_tushare.get_trade_date(self.ds_tushare.db_date)
+        self.__ui.dateEdit_cur.setDate(QtCore.QDate.fromString(date_trade_last, 'yyyyMMdd'))
+        self.__ui.dateEdit_daily.setDate(QtCore.QDate.fromString(date_now, 'yyyyMMdd'))        
+        self.__ui.dateEdit_oper.setDate(QtCore.QDate.fromString(date_trade_last, 'yyyyMMdd'))    
+        date_range = self.ds_tushare.get_curve_date()
+        self.date_begin = date_range[0]                    
+        self.date_end = date_range[1]
         # GUI的groupBox中创建一个布局，用于添加MyFigure类的实例（即图形）后其他部件。 
         self.gridlayout_his = QGridLayout(self.__ui.groupBox_daily)  # 继承容器groupBox
         self.gridlayout_his.addWidget(self.F_his,0,0)        
@@ -200,18 +205,25 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ds_tushare.del_cur_stock_pool(lst_code_transfer_sell, date.toString("yyyyMMdd"))
             self.__ui.textEdit_buy.clear()
             self.__ui.textEdit_sell.clear()
+            self.set_table_widget_stock_hold()
 
-    def set_table_widget_stock_hold(self):
-        date_lst = self.ds_tushare.get_cur_stock_pool_date_lst()                  
-        if len(date_lst) == 0:
-            LOG.info('收益曲线开始日期等于结束日期')
-            return np.array(0), np.array(0)
-        lst_hold_stock = self.ds_tushare.get_cur_stock_pool(date_lst[-1])
+    def set_table_widget_stock_hold(self):        
+        date_lst = self.ds_tushare.get_cur_stock_pool_date_lst()
+        if self.date_begin == self.date_end or len(date_lst) == 0:
+            LOG.info('收益曲线开始日期等于结束日期')    
+            return            
+        lst_hold_stock = self.ds_tushare.get_cur_stock_pool_code_lst(date_lst[-1])
+        date_lst.reverse()
+        for trade_date in date_lst:
+            stock_daily_lst = self.ds_tushare.get_daily_stock_pool(trade_date)
+            for item_daily in stock_daily_lst:
+                if item_daily['ts_code'] not in lst_hold_stock:
+                    lst_hold_stock.append(item_daily['ts_code'])
+        self.__ui.tableWidget_cur.clearContents()
         self.__ui.tableWidget_cur.setRowCount(len(lst_hold_stock))
         self.__ui.tableWidget_cur.setColumnCount(4)
         line_idx = 0
-        for item_hold in lst_hold_stock:
-            code = item_hold['ts_code']
+        for code in lst_hold_stock:            
             self.__ui.tableWidget_cur.setItem(line_idx, 0, QTableWidgetItem(code))
             stock_daily = self.ds_tushare.get_daily_stock(code)
             if stock_daily is not None:
@@ -220,33 +232,32 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.__ui.tableWidget_cur.setItem(line_idx, 2, QTableWidgetItem(date_sell))     
                 k_data_buy = self.ds_tushare.get_stock_price_info(code, stock_daily['date_buy'])
                 if stock_daily['date_sell'] is None:                    
-                    k_data_sell = self.ds_tushare.get_stock_price_info(code, date_lst[-1])
+                    k_data_sell = self.ds_tushare.get_stock_price_info_last(code)
                 else:
                     k_data_sell = self.ds_tushare.get_stock_price_info(code, stock_daily['date_sell'])
                 if k_data_sell is not None and k_data_buy is not None:
                     profit = (k_data_sell['close'] - k_data_buy['close']) / k_data_buy['close']
                 else:
-                    profit = None
-                self.__ui.tableWidget_cur.setItem(line_idx, 3, QTableWidgetItem("%.2f" % (100*(profit+1))))     
+                    profit = 0
+                self.__ui.tableWidget_cur.setItem(line_idx, 3, QTableWidgetItem("%.4f" % (100*(profit))))     
             line_idx += 1
     
     def count_index_yield(self, code_index):
         """  
         计算指数收益曲线
         code_index: 指数代码 ['000001_SH', '399001_SZ', '399005_SZ', '399006_SZ']       
-        """
-        date_lst = self.ds_tushare.get_cur_stock_pool_date_lst()          
-        idx = 0
-        if len(date_lst) == 0:
+        """                
+        if self.date_begin == self.date_end:
             LOG.info('收益曲线开始日期等于结束日期')
             return np.array(0), np.array(0)
         value_index_lst = list()
-        index_lst = self.ds_tushare.get_stock_price_lst(code_index, date_lst[0], date_lst[-1])
+        index_lst = self.ds_tushare.get_stock_price_lst(code_index, self.date_begin, self.date_end)
         for item_index in index_lst:
             value_index_lst.append(item_index['close'])
         rate_lst_ret = list()
         for item_index_value in value_index_lst:
             rate_lst_ret.append(item_index_value / value_index_lst[0])
+        date_lst = self.ds_tushare.get_trade_cal(self.date_begin, self.date_end)
         return np.array(date_lst), np.array(rate_lst_ret)
 
     def count_cur_yield(self):
@@ -256,14 +267,13 @@ class MainWindow(QtWidgets.QMainWindow):
         1、按照每日收盘价进行买卖操作
         2、平均持股，单个股票的上涨对应总市值比例为 单只股票上涨幅度/当前总股票数
         3、每日收益累加中复利按天计算，没有考虑单支股票的复利
-        """
-        date_lst = self.ds_tushare.get_cur_stock_pool_date_lst()
-        rate_lst = list()       
-        idx = 0
-        if len(date_lst) == 0:
+        """        
+        rate_lst = list()               
+        if self.date_begin == self.date_end:
             LOG.info('收益曲线开始日期等于结束日期')
             return np.array(0), np.array(0)
-        code_lst_pre = self.ds_tushare.get_cur_stock_pool_code_lst(date_lst[0])
+        date_lst =self.ds_tushare.get_trade_cal(self.date_begin, self.date_end)
+        code_lst_pre = self.ds_tushare.get_cur_stock_pool_code_lst(self.date_begin)
         for item_date in date_lst:
             pct_chg_lst = list()            
             for item_code_pre in code_lst_pre:

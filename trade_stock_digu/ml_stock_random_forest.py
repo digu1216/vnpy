@@ -12,6 +12,17 @@ from pymongo import MongoClient, ASCENDING, DESCENDING
 from vnpy.trade_stock_digu.data_service import DataServiceTushare, LOG
 
 ds_tushare = DataServiceTushare()    
+
+def get_ml_X(close, ma5, ma10, ma20, ma30, ma60, ma120):
+    arr = np.array([close-ma5, close-ma10, close-ma20, close-ma30, close-ma60, close-ma120])
+    return arr.reshape(-1, 1).T
+
+def get_ml_X_db(code, date):
+    k_data = ds_tushare.get_stock_price_info(code, date)
+    arr = np.array([k_data['close']-k_data['ma_5'], k_data['close']-k_data['ma_10'], k_data['close']-k_data['ma_20'], k_data['close']-k_data['ma_30'], \
+        k_data['close']-k_data['ma_60'], k_data['close']-k_data['ma_120']])
+    return arr.reshape(-1, 1).T
+
 lst_stock = ds_tushare.get_stock_list()   
 lst_ma5 = list()
 lst_ma10 = list()

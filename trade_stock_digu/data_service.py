@@ -491,6 +491,12 @@ class DataServiceTushare(object):
             {'trade_date': date}, {'_id': 0})
         return stock_price_info
 
+    def get_stock_price_info_last(self, code):        
+        # 获得某只股票最后一天的股价（考虑停牌因素）
+        cl_stock_code = self.db[code]
+        stock_price_info = cl_stock_code.find_one(sort=[('_id', -1)])
+        return stock_price_info
+
     def get_stock_price_lst(self, code, begin_date, end_date):        
         cl_stock_code = self.db[code]
         ret_lst = list()
@@ -617,6 +623,15 @@ class DataServiceTushare(object):
             if item['date'] not in lst_date:
                 lst_date.append(item['date'])       
         return lst_date
+
+    def get_curve_date(self):
+        cl_stk_pool_cur = self.db[CL_STK_POOL_CUR]
+        ret = cl_stk_pool_cur.find_one(sort=[('_id', 1)])
+        date_end = self.get_trade_date(self.db_date)
+        if ret is not None:
+            return ret['date'], date_end
+        else:
+            return date_end, date_end
 
     def get_daily_stock_pool(self, date):
         cl_stk_pool_daily = self.db[CL_STK_POOL_DAILY]

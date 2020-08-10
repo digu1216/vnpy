@@ -50,7 +50,7 @@ class StrategyBullBack(StrategyBase):
                 if dic_stock_price['high_250'] / dic_stock_price['low_250'] < 4 \
                     and dic_stock_price['ma_60'] > dic_stock_price['ma_120'] and dic_stock_price['ma_120'] > dic_stock_price['ma_250'] \
                         and dic_stock_price['ma_250'] > dic_stock_price['ma_500'] and dic_stock_price['close'] < dic_stock_price['high_30'] * 0.8\
-                            and dic_stock_price['close'] > dic_stock_price['ma_250'] * 0.98 and dic_stock_price['close'] < dic_stock_price['ma_250'] * 1.02:
+                            and dic_stock_price['close'] > dic_stock_price['ma_60'] * 0.98 and dic_stock_price['close'] < dic_stock_price['ma_60'] * 1.02:
                     date_pre = ds_tushare.get_pre_trade_date(date_picked)
                     price_pre = ds_tushare.get_stock_price_info(ts_code, date_pre)
                     if dic_stock_price['ma_500'] > price_pre['ma_500'] and dic_stock_price['ma_250'] > price_pre['ma_250'] and dic_stock_price['ma_120'] > price_pre['ma_120']:
