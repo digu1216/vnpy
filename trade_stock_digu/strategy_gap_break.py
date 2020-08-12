@@ -8,19 +8,23 @@ from convert_utils import string_to_datetime, time_to_str
 
 class StrategyGapBreak(StrategyBase):
     """
-    缺口图片：
+    缺口突破策略：
     1、中长期均线多头排列(ma60>ma120>ma250<ma500,)
     2、股价最近一年未暴涨(high_250/low_250<3)
-    3、最近5（10）天有缺口图片
-    4、缺口价格在年内新高附近
-    5、股价回调到缺口位置
+    3、最近5（10）天有缺口图片 days_gap
+    4、缺口价格在250日新高附近
+    5、股价回调到缺口位置，缺口下端价格+2%以内
+    6、缺口上方最高价涨幅0.2
 
     待补充：
-    长期均线半年以上时间未触碰
-    机构密集持股股票  
     """
     n_years = 2
-    ma_long = 250
+    days_gap = 5
+    pct_near_gap = 0.02
+    pct_back = 0.3
+    max_times_in_year = 3
+    days_break = 250
+    pct_max = 0.2
     # def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
     #     """"""
     #     super().__init__()
@@ -46,13 +50,17 @@ class StrategyGapBreak(StrategyBase):
             if dic_stock_price is None:
                 # 排除选股日停牌的股票
                 continue   
+            high_gap = 'high_' + str(self.days_gap)
+            low_gap = 'low_' + str(self.days_gap)
+            days_break_gap = 'high_' + str(self.days_break)
             try:
-                if dic_stock_price['high_250'] / dic_stock_price['low_250'] < 3 \
-                    and dic_stock_price['ma_60'] > dic_stock_price['ma_120'] and dic_stock_price['ma_120'] > dic_stock_price['ma_250'] \
-                        and dic_stock_price['close'] < dic_stock_price['low_10'] * 1.03:
-                    date_pre = ds_tushare.get_pre_trade_date(date_picked, 10)
+                if dic_stock_price['high_250'] / dic_stock_price['low_250'] < self.max_times_in_year \
+                    and dic_stock_price['ma_60'] > dic_stock_price['ma_120'] and dic_stock_price['ma_120'] > dic_stock_price['ma_250']:
+                    date_pre = ds_tushare.get_pre_trade_date(date_picked, self.days_gap)
                     price_pre = ds_tushare.get_stock_price_info(ts_code, date_pre)
-                    if dic_stock_price['close'] > price_pre['high_250'] * 0.9 and dic_stock_price['close'] < price_pre['high_250'] * 1.1 and price_pre['high'] < dic_stock_price['low_10']:
+                    if price_pre['high'] < dic_stock_price[low_gap] and price_pre['close'] > price_pre[days_break_gap] \
+                        and dic_stock_price['close'] < price_pre['high']*(1.0+self.pct_near_gap) \
+                            and price_pre[high_gap]/price_pre['close'] < (1.0+self.pct_max):
                         lst_code_picked.append(dic_stock_price['ts_code'])                    
             except:
                 self.logger.info('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
