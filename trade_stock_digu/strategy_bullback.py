@@ -23,7 +23,7 @@ class StrategyBullBack(StrategyBase):
     n_years = 2
     pct_near = 0.02
     pct_back = 0.3
-    max_times_in_year = 3
+    max_times_in_year = 4
     ma_long = 250
     # def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
     #     """"""
@@ -61,10 +61,11 @@ class StrategyBullBack(StrategyBase):
                     price_pre = ds_tushare.get_stock_price_info(ts_code, date_pre)
                     if dic_stock_price['ma_500'] > price_pre['ma_500'] and dic_stock_price['ma_250'] > price_pre['ma_250']:
                         cal = ds_tushare.get_pre_n_trade_date(dic_stock_price['trade_date'], self.day_ma_long_effective)
-                        k_data_lst = ds_tushare.get_stock_price_lst(dic_stock_price['ts_code'] cal[0], cal[-1])
+                        k_data_lst = ds_tushare.get_stock_price_lst(dic_stock_price['ts_code'], cal[-1], cal[0])
                         for k_data in k_data_lst:
                             if (k_data['close'] < k_data[str_ma_long]):
                                 flag_in_pool = False
+                                break
                         if flag_in_pool is True:
                             lst_code_picked.append(dic_stock_price['ts_code'])                    
             except:
@@ -76,7 +77,7 @@ class StrategyBullBack(StrategyBase):
 if __name__ == "__main__":
     ds_tushare = DataServiceTushare()
     strategy = StrategyBullBack()
-    print(strategy.pick_stock('20200812'))
+    print(strategy.pick_stock('20200811'))
     # lst_trade_date = ds_tushare.get_trade_cal('20200101', '20200701')
     # cnt_loop = 0
     # for item_date in lst_trade_date:
