@@ -1,6 +1,6 @@
 from vnpy.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
-from vnpy.app.cta_strategy.strategies.atr_rsi_strategy import (
-    AtrRsiStrategy,
+from vnpy.app.cta_strategy.strategies.atr_rsi_strategy_digu import (
+    AtrRsiStrategyDigu,
 )
 from datetime import datetime
 
@@ -8,15 +8,15 @@ engine = BacktestingEngine()
 engine.set_parameters(
     vt_symbol="000001_SH.SSE",
     interval="d",
-    start=datetime(2017, 10, 10),
-    end=datetime(2019, 10, 30),
+    start=datetime(2019, 1, 1),
+    end=datetime(2019, 12, 31),
     rate=0.3/10000,
     slippage=0.2,
     size=300,
     pricetick=0.2,
     capital=1_000_000,
 )
-engine.add_strategy(AtrRsiStrategy, {})
+engine.add_strategy(AtrRsiStrategyDigu, {})
 
 engine.load_data()
 engine.run_backtesting()
